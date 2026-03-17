@@ -512,7 +512,10 @@ function calcOpenSaldo() {
   state.entries.forEach(function(e) {
     if (e.isSettlement) {
       // Settlement reduces the specific saldo
-      var amt = e.who === 'p1' ? e.amount : -e.amount;
+      // Settlement: payer reduces the debt
+      // p1diff>0 means p2 owes p1, so p2 pays → reduces miete by amount
+      // p1diff<0 means p1 owes p2, so p1 pays → increases miete (cancels negative)
+      var amt = e.who === 'p2' ? e.amount : -e.amount;
       if (e.settlementType === 'miete') miete -= amt;
       else alltag -= amt;
     } else {
