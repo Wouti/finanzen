@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Finanzen">
+<title>Finanzen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #FAFAF8;
+  --bg2: #F2F1ED;
+  --bg3: #E8E7E2;
+  --card: #FFFFFF;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #1A1A18;
+  --muted: #6B6B66;
+  --hint: #A8A8A2;
+  --green: #1D9E75;
+  --red: #E24B4A;
+  --amber: #BA7517;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413;
+    --bg2: #1E1E1C;
+    --bg3: #282826;
+    --card: #1E1E1C;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #F0EFE9;
+    --muted: #8A8A84;
+    --hint: #555550;
+    --green: #2DB88A;
+    --red: #E85F5E;
+    --amber: #D4880A;
+  }
+}
+
+html, body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 16px;
+  overscroll-behavior: none;
+}
+
+/* SETUP SCREEN */
+#setup-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+#setup-screen h1 {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+.setup-card {
+  width: 100%;
+  background: var(--card);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+.setup-card h2 {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--hint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+.setup-card p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+.setup-card code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text);
+}
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.step-row {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.step-row p { margin-bottom: 0; }
+.setup-input-group { margin-bottom: 12px; }
+.setup-input-group label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--hint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 5px;
+}
+.setup-input-group input, .setup-input-group textarea {
+  width: 100%;
+  background: var(--bg2);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+}
+.setup-input-group input:focus, .setup-input-group textarea:focus {
+  border-color: var(--text);
+}
+.btn-primary {
+  width: 100%;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.setup-note {
+  font-size: 12px;
+  color: var(--hint);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* MAIN APP */
+#app { display: none; max-width: 480px; margin: 0 auto; padding-bottom: 90px; }
+
+/* DASHBOARD */
+.dashboard {
+  background: var(--text);
+  color: var(--bg);
+  padding: 1.25rem 1rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.dashboard-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.dashboard-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+.dashboard-month {
+  font-family: var(--mono);
+  font-size: 11px;
+  opacity: 0.6;
+}
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.dash-stat {
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+.dash-stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  opacity: 0.5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-stat-val {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+.dash-stat-val.green { color: #2DB88A; }
+.dash-stat-val.red { color: #E85F5E; }
+.dash-settle {
+  margin-top: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dash-settle-label { opacity: 0.5; font-size: 10px; }
+.dash-settle-val { font-weight: 500; }
+.dash-settle-val.green { color: #2DB88A; }
+.dash-settle-val.red { color: #E85F5E; }
+.dash-settle-val.neutral { opacity: 0.7; }
+
+/* SECTIONS */
+.section { padding: 1rem; }
+.section-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--hint);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+/* ADD FORM */
+.add-card {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.field { margin-bottom: 10px; }
+.field label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--hint);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+.field input, .field select {
+  width: 100%;
+  background: var(--bg2);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.field input:focus, .field select:focus { border-color: var(--text); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+.btn-add {
+  width: 100%;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-top: 4px;
+}
+.btn-add:hover { opacity: 0.85; }
+.add-msg {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  text-align: center;
+  margin-top: 8px;
+  min-height: 16px;
+}
+.add-msg.err { color: var(--red); }
+
+/* ENTRY LIST */
+.entry-list { }
+.entry {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.entry-left { flex: 1; min-width: 0; }
+.entry-desc {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.entry-date {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--hint);
+}
+.entry-cat {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--bg3);
+  padding: 1px 6px;
+  border-radius: 99px;
+}
+.entry-who {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+.entry-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.entry-amount {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+.entry-del {
+  font-size: 11px;
+  color: var(--hint);
+  cursor: pointer;
+  padding: 2px;
+}
+.entry-del:hover { color: var(--red); }
+
+/* MONTH OVERVIEW */
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+.month-nav select {
+  flex: 1;
+  background: var(--bg2);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  -webkit-appearance: none;
+}
+.month-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+.month-stat {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.month-stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--hint);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.month-stat-val {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 400;
+}
+.cat-section {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 8px;
+}
+.cat-row { margin-bottom: 10px; }
+.cat-row:last-child { margin-bottom: 0; }
+.cat-row-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  font-family: var(--mono);
+}
+.cat-bar-track {
+  height: 3px;
+  background: var(--bg3);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.cat-bar-fill {
+  height: 100%;
+  background: var(--text);
+  border-radius: 99px;
+  transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+.settle-card {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 8px;
+}
+.settle-line {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.settle-amount { font-weight: 500; }
+
+/* SETTINGS */
+.settings-card {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 8px;
+}
+.settings-card .section-title { margin-bottom: 0.75rem; }
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.split-name {
+  font-size: 13px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.split-input {
+  width: 58px;
+  background: var(--bg2);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 7px 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  text-align: right;
+  -webkit-appearance: none;
+}
+.split-input:focus { border-color: var(--text); }
+.split-pct { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.split-hint { font-family: var(--mono); font-size: 10px; color: var(--hint); margin-top: 4px; }
+.btn-save {
+  width: 100%;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 11px;
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-top: 6px;
+}
+.btn-save:hover { opacity: 0.85; }
+.btn-danger {
+  width: 100%;
+  background: transparent;
+  color: var(--red);
+  border: 0.5px solid var(--red);
+  border-radius: var(--radius-sm);
+  padding: 11px;
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.save-msg {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  text-align: center;
+  margin-top: 8px;
+  min-height: 16px;
+}
+
+/* BOTTOM NAV */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border-top: 0.5px solid var(--border2);
+  display: flex;
+  max-width: 480px;
+  margin: 0 auto;
+  z-index: 200;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 8px;
+  cursor: pointer;
+  gap: 3px;
+}
+.nav-icon { font-size: 18px; line-height: 1; }
+.nav-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--hint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.nav-item.active .nav-label { color: var(--text); }
+.nav-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--text);
+  opacity: 0;
+}
+.nav-item.active .nav-dot { opacity: 1; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.empty {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--hint);
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.sync-indicator {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--hint);
+  text-align: center;
+  padding: 4px;
+}
+
+/* Loading */
+#loading {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 999;
+}
+#loading p {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--hint);
+  letter-spacing: 0.08em;
+}
+.spinner {
+  width: 24px; height: 24px;
+  border: 1.5px solid var(--border2);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Verbinde...</p>
+</div>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen" style="display:none">
+  <h1>Finanzen // Setup</h1>
+
+  <div class="setup-card">
+    <h2>Firebase einrichten (einmalig, ~5 min)</h2>
+
+    <div class="step-row">
+      <span class="step-num">1</span>
+      <p>Geh auf <strong>console.firebase.google.com</strong> → "Projekt erstellen" → Namen eingeben (z.B. "finanzen") → Analytics deaktivieren → Erstellen.</p>
+    </div>
+    <div class="step-row">
+      <span class="step-num">2</span>
+      <p>Im Projekt: links auf <strong>"Firestore Database"</strong> → "Datenbank erstellen" → "Im Testmodus starten" → Standort wählen (z.B. <code>eur3</code>) → Fertigstellen.</p>
+    </div>
+    <div class="step-row">
+      <span class="step-num">3</span>
+      <p>Links oben: Zahnrad → <strong>"Projekteinstellungen"</strong> → runter zu "Deine Apps" → Web-Icon <code>&lt;/&gt;</code> klicken → App-Name eingeben → Registrieren.</p>
+    </div>
+    <div class="step-row">
+      <span class="step-num">4</span>
+      <p>Du siehst jetzt ein Code-Snippet mit <code>firebaseConfig</code>. Kopiere die Werte aus dem Snippet in die Felder unten.</p>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <h2>Firebase-Konfiguration eintragen</h2>
+    <div class="setup-input-group">
+      <label>API KEY</label>
+      <input type="text" id="cfg-apiKey" placeholder="AIzaSy..." />
+    </div>
+    <div class="setup-input-group">
+      <label>AUTH DOMAIN</label>
+      <input type="text" id="cfg-authDomain" placeholder="mein-projekt.firebaseapp.com" />
+    </div>
+    <div class="setup-input-group">
+      <label>PROJECT ID</label>
+      <input type="text" id="cfg-projectId" placeholder="mein-projekt" />
+    </div>
+    <div class="setup-input-group">
+      <label>APP ID</label>
+      <input type="text" id="cfg-appId" placeholder="1:123456789:web:..." />
+    </div>
+    <div class="setup-input-group">
+      <label>EURE NAMEN (kommagetrennt)</label>
+      <input type="text" id="cfg-names" placeholder="Wouter, Partner" />
+    </div>
+    <button class="btn-primary" onclick="saveConfig()">Verbinden & starten</button>
+    <div id="cfg-msg" style="font-family:var(--mono);font-size:11px;color:var(--red);text-align:center;margin-top:8px;min-height:16px;"></div>
+  </div>
+
+  <p class="setup-note">Diese Datei auf beiden Handys öffnen und dieselbe Konfiguration eingeben. Fertig.</p>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- DASHBOARD (sticky) -->
+  <div class="dashboard" id="dashboard">
+    <div class="dashboard-top">
+      <span class="dashboard-title">Finanzen</span>
+      <span class="dashboard-month" id="dash-month">—</span>
+    </div>
+    <div class="dashboard-stats">
+      <div class="dash-stat">
+        <div class="dash-stat-label">Gesamt</div>
+        <div class="dash-stat-val" id="dash-total">€ 0</div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-label" id="dash-p1-label">Person 1</div>
+        <div class="dash-stat-val" id="dash-p1-val">€ 0</div>
+      </div>
+      <div class="dash-stat">
+        <div class="dash-stat-label" id="dash-p2-label">Person 2</div>
+        <div class="dash-stat-val" id="dash-p2-val">€ 0</div>
+      </div>
+    </div>
+    <div class="dash-settle">
+      <span class="dash-settle-label">Ausgleich</span>
+      <span class="dash-settle-val neutral" id="dash-settle-val">—</span>
+    </div>
+  </div>
+
+  <!-- TAB: EINTRAGEN -->
+  <div id="tab-add" class="tab-content active">
+    <div class="section">
+      <div class="section-title">Neuer Eintrag</div>
+      <div class="add-card">
+        <div class="field">
+          <label>Beschreibung</label>
+          <input type="text" id="f-desc" placeholder="z.B. Rewe Einkauf" autocomplete="off" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Betrag (€)</label>
+            <input type="number" id="f-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+          </div>
+          <div class="field">
+            <label>Datum</label>
+            <input type="text" id="f-date" placeholder="TT.MM.JJ" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Bezahlt von</label>
+            <select id="f-who">
+              <option value="p1" id="opt-p1">Person 1</option>
+              <option value="p2" id="opt-p2">Person 2</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Kategorie</label>
+            <select id="f-cat">
+              <option value="miete">Miete / NK</option>
+              <option value="einkauf">Einkäufe</option>
+              <option value="urlaub">Urlaub</option>
+              <option value="geschenke">Geschenke</option>
+              <option value="katzen">Katzen</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-add" onclick="addEntry()">Eintragen</button>
+        <div id="add-msg" class="add-msg"></div>
+      </div>
+    </div>
+
+    <div class="section" style="padding-top:0">
+      <div class="section-title">Zuletzt eingetragen</div>
+      <div id="recent-list"></div>
+    </div>
+  </div>
+
+  <!-- TAB: VERLAUF -->
+  <div id="tab-list" class="tab-content">
+    <div class="section">
+      <div class="section-title">Alle Einträge</div>
+      <div id="full-list"></div>
+    </div>
+  </div>
+
+  <!-- TAB: MONAT -->
+  <div id="tab-month" class="tab-content">
+    <div class="section">
+      <div class="month-nav">
+        <div class="section-title" style="margin:0">Monat</div>
+        <select id="month-sel" onchange="renderMonth()"></select>
+      </div>
+      <div class="month-grid" id="month-grid"></div>
+      <div class="section-title">Kategorien</div>
+      <div class="cat-section" id="month-cats"></div>
+      <div class="section-title" style="margin-top:1rem">Ausgleich</div>
+      <div class="settle-card" id="month-settle"></div>
+    </div>
+  </div>
+
+  <!-- TAB: EINSTELLUNGEN -->
+  <div id="tab-settings" class="tab-content">
+    <div class="section">
+      <div class="settings-card">
+        <div class="section-title">Namen</div>
+        <div class="field-row" style="margin-bottom:8px">
+          <div class="field"><label>Person 1</label><input type="text" id="s-name1" /></div>
+          <div class="field"><label>Person 2</label><input type="text" id="s-name2" /></div>
+        </div>
+        <div class="section-title" style="margin-top:12px">Split (aktuelles Jahr)</div>
+        <div class="split-row" style="margin-top:8px">
+          <span class="split-name" id="split-lbl1">Person 1</span>
+          <input type="number" class="split-input" id="s-split1" min="0" max="100" step="1" value="50" oninput="syncSplit(1)" />
+          <span class="split-pct">%</span>
+        </div>
+        <div class="split-row">
+          <span class="split-name" id="split-lbl2">Person 2</span>
+          <input type="number" class="split-input" id="s-split2" min="0" max="100" step="1" value="50" oninput="syncSplit(2)" />
+          <span class="split-pct">%</span>
+        </div>
+        <div class="split-hint">Beide zusammen sollten 100% ergeben. Zum Jahresende anpassen wenn Einkommen feststehen.</div>
+        <button class="btn-save" onclick="saveSettings()">Speichern</button>
+        <div id="save-msg" class="save-msg"></div>
+      </div>
+      <div class="settings-card">
+        <div class="section-title">Daten</div>
+        <div class="sync-indicator" id="sync-status">—</div>
+        <button class="btn-danger" onclick="clearAll()">Alle Einträge löschen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" onclick="showTab('add')" id="nav-add">
+      <div class="nav-dot"></div>
+      <div class="nav-icon">＋</div>
+      <div class="nav-label">Eintrag</div>
+    </div>
+    <div class="nav-item" onclick="showTab('list')" id="nav-list">
+      <div class="nav-dot"></div>
+      <div class="nav-icon">≡</div>
+      <div class="nav-label">Verlauf</div>
+    </div>
+    <div class="nav-item" onclick="showTab('month')" id="nav-month">
+      <div class="nav-dot"></div>
+      <div class="nav-icon">◷</div>
+      <div class="nav-label">Monat</div>
+    </div>
+    <div class="nav-item" onclick="showTab('settings')" id="nav-settings">
+      <div class="nav-dot"></div>
+      <div class="nav-icon">⚙</div>
+      <div class="nav-label">Einstellungen</div>
+    </div>
+  </nav>
+
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-app-compat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-firestore-compat.min.js"></script>
+
+<script>
+const CATS = { miete:'Miete / NK', einkauf:'Einkäufe', urlaub:'Urlaub', geschenke:'Geschenke', katzen:'Katzen' };
+
+let db = null;
+let unsubscribe = null;
+let state = { entries: [], name1: 'Wouter', name2: 'Partner', split1: 50, split2: 50 };
+let activeTab = 'add';
+
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+
+function loadConfig() {
+  try { return JSON.parse(localStorage.getItem('ftracker_cfg') || 'null'); } catch(e) { return null; }
+}
+
+function saveConfig() {
+  const apiKey     = document.getElementById('cfg-apiKey').value.trim();
+  const authDomain = document.getElementById('cfg-authDomain').value.trim();
+  const projectId  = document.getElementById('cfg-projectId').value.trim();
+  const appId      = document.getElementById('cfg-appId').value.trim();
+  const namesRaw   = document.getElementById('cfg-names').value.trim();
+  const msg        = document.getElementById('cfg-msg');
+
+  if (!apiKey || !authDomain || !projectId || !appId) {
+    msg.textContent = 'Bitte alle Firebase-Felder ausfüllen.'; return;
+  }
+  const names = namesRaw.split(',').map(n => n.trim()).filter(Boolean);
+  const name1 = names[0] || 'Person 1';
+  const name2 = names[1] || 'Person 2';
+
+  const cfg = { apiKey, authDomain, projectId, appId, name1, name2 };
+  localStorage.setItem('ftracker_cfg', JSON.stringify(cfg));
+  msg.textContent = '';
+  initFirebase(cfg);
+}
+
+// ── FIREBASE ─────────────────────────────────────────────────────────────────
+
+function initFirebase(cfg) {
+  try {
+    if (!firebase.apps.length) {
+      firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId, appId: cfg.appId });
+    }
+    db = firebase.firestore();
+    state.name1 = cfg.name1;
+    state.name2 = cfg.name2;
+    startSync();
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+    document.getElementById('cfg-msg').textContent = 'Verbindung fehlgeschlagen: ' + e.message;
+  }
+}
+
+function startSync() {
+  if (unsubscribe) unsubscribe();
+  document.getElementById('sync-status').textContent = 'Verbinde mit Firebase...';
+
+  const settingsRef = db.collection('tracker').doc('settings');
+  const entriesRef  = db.collection('tracker').doc('entries');
+
+  // Load settings first
+  settingsRef.get().then(doc => {
+    if (doc.exists) {
+      const d = doc.data();
+      state.name1  = d.name1  || state.name1;
+      state.name2  = d.name2  || state.name2;
+      state.split1 = d.split1 ?? 50;
+      state.split2 = d.split2 ?? 50;
+    }
+
+    // Live-listen to entries
+    unsubscribe = entriesRef.onSnapshot(snap => {
+      if (snap.exists) {
+        state.entries = snap.data().list || [];
+      } else {
+        state.entries = [];
+      }
+      document.getElementById('sync-status').textContent = 'Zuletzt synchronisiert: ' + new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+      showApp();
+      renderAll();
+    }, err => {
+      document.getElementById('sync-status').textContent = 'Sync-Fehler: ' + err.message;
+    });
+  }).catch(e => {
+    // Probably first launch — no settings doc yet, just start
+    unsubscribe = entriesRef.onSnapshot(snap => {
+      state.entries = snap.exists ? (snap.data().list || []) : [];
+      document.getElementById('sync-status').textContent = 'Zuletzt synchronisiert: ' + new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+      showApp();
+      renderAll();
+    });
+  });
+}
+
+async function persist() {
+  if (!db) return;
+  try {
+    await db.collection('tracker').doc('entries').set({ list: state.entries });
+  } catch(e) { console.error('Persist error:', e); }
+}
+
+async function persistSettings() {
+  if (!db) return;
+  try {
+    await db.collection('tracker').doc('settings').set({
+      name1: state.name1, name2: state.name2,
+      split1: state.split1, split2: state.split2
+    });
+  } catch(e) { console.error('Settings error:', e); }
+}
+
+// ── SHOW APP ──────────────────────────────────────────────────────────────────
+
+function showApp() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+
+function today() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(2)}`;
+}
+
+function parseDate(s) {
+  const p = s.split('.');
+  if (p.length < 3) return new Date();
+  return new Date(2000 + parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+}
+
+function monthKey(dateStr) {
+  const p = dateStr.split('.');
+  if (p.length < 3) return '??';
+  return `${p[1]}.${p[2]}`;
+}
+
+function monthLabel(key) {
+  const months = ['','Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const [m, y] = key.split('.');
+  return `${months[parseInt(m)]} 20${y}`;
+}
+
+function currentMonthKey() { return monthKey(today()); }
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+
+function renderAll() {
+  applyNames();
+  renderDashboard();
+  renderRecentList();
+  if (activeTab === 'list')   renderFullList();
+  if (activeTab === 'month')  { populateMonthSel(); renderMonth(); }
+  if (activeTab === 'settings') applySettingsForm();
+}
+
+function applyNames() {
+  document.getElementById('opt-p1').text = state.name1;
+  document.getElementById('opt-p2').text = state.name2;
+  document.getElementById('dash-p1-label').textContent = state.name1;
+  document.getElementById('dash-p2-label').textContent = state.name2;
+  document.getElementById('split-lbl1').textContent = state.name1;
+  document.getElementById('split-lbl2').textContent = state.name2;
+}
+
+function renderDashboard() {
+  const key = currentMonthKey();
+  const entries = state.entries.filter(e => monthKey(e.date) === key);
+  const total  = entries.reduce((s,e) => s + e.amount, 0);
+  const p1paid = entries.filter(e => e.who === 'p1').reduce((s,e) => s + e.amount, 0);
+  const p2paid = entries.filter(e => e.who === 'p2').reduce((s,e) => s + e.amount, 0);
+  const p1share = total * (state.split1 / 100);
+  const p1diff  = p1paid - p1share;
+
+  document.getElementById('dash-month').textContent = monthLabel(key);
+  document.getElementById('dash-total').textContent = '€\u00a0' + total.toFixed(2);
+  document.getElementById('dash-p1-val').textContent = '€\u00a0' + p1paid.toFixed(2);
+  document.getElementById('dash-p2-val').textContent = '€\u00a0' + p2paid.toFixed(2);
+
+  const sv = document.getElementById('dash-settle-val');
+  if (total === 0) {
+    sv.textContent = '—'; sv.className = 'dash-settle-val neutral';
+  } else if (Math.abs(p1diff) < 0.01) {
+    sv.textContent = 'Ausgeglichen ✓'; sv.className = 'dash-settle-val green';
+  } else if (p1diff > 0) {
+    sv.textContent = state.name2 + ' → ' + state.name1 + ' € ' + Math.abs(p1diff).toFixed(2);
+    sv.className = 'dash-settle-val green';
+  } else {
+    sv.textContent = state.name1 + ' → ' + state.name2 + ' € ' + Math.abs(p1diff).toFixed(2);
+    sv.className = 'dash-settle-val red';
+  }
+}
+
+function entryHTML(e, showDel=true) {
+  return `<div class="entry">
+    <div class="entry-left">
+      <div class="entry-desc">${e.desc}</div>
+      <div class="entry-meta">
+        <span class="entry-date">${e.date}</span>
+        <span class="entry-cat">${CATS[e.cat] || e.cat}</span>
+        <span class="entry-who">${e.who === 'p1' ? state.name1 : state.name2}</span>
+      </div>
+    </div>
+    <div class="entry-right">
+      <span class="entry-amount">€ ${e.amount.toFixed(2)}</span>
+      ${showDel ? `<span class="entry-del" onclick="deleteEntry(${e.id})">✕</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderRecentList() {
+  const el = document.getElementById('recent-list');
+  const sorted = [...state.entries].sort((a,b) => b.id - a.id).slice(0, 5);
+  el.innerHTML = sorted.length ? sorted.map(e => entryHTML(e)).join('') : '<div class="empty">Noch nichts eingetragen.</div>';
+}
+
+function renderFullList() {
+  const el = document.getElementById('full-list');
+  const sorted = [...state.entries].sort((a,b) => b.id - a.id);
+  el.innerHTML = sorted.length ? sorted.map(e => entryHTML(e)).join('') : '<div class="empty">Noch keine Einträge.</div>';
+}
+
+function populateMonthSel() {
+  const keys = [...new Set(state.entries.map(e => monthKey(e.date)))].sort().reverse();
+  if (!keys.length) keys.push(currentMonthKey());
+  const sel = document.getElementById('month-sel');
+  const cur = sel.value;
+  sel.innerHTML = keys.map(k => `<option value="${k}">${monthLabel(k)}</option>`).join('');
+  if (cur && keys.includes(cur)) sel.value = cur;
+}
+
+function renderMonth() {
+  const key = document.getElementById('month-sel').value;
+  const entries = state.entries.filter(e => monthKey(e.date) === key);
+  const total  = entries.reduce((s,e) => s + e.amount, 0);
+  const p1paid = entries.filter(e => e.who === 'p1').reduce((s,e) => s + e.amount, 0);
+  const p2paid = entries.filter(e => e.who === 'p2').reduce((s,e) => s + e.amount, 0);
+  const p1share = total * (state.split1 / 100);
+  const p2share = total * (state.split2 / 100);
+  const p1diff  = p1paid - p1share;
+
+  document.getElementById('month-grid').innerHTML = `
+    <div class="month-stat"><div class="month-stat-label">Gesamt</div><div class="month-stat-val">€ ${total.toFixed(2)}</div></div>
+    <div class="month-stat"><div class="month-stat-label">Split (${state.split1}/${state.split2})</div><div class="month-stat-val" style="font-size:14px">€ ${p1share.toFixed(2)} / ${p2share.toFixed(2)}</div></div>
+    <div class="month-stat"><div class="month-stat-label">${state.name1}</div><div class="month-stat-val">€ ${p1paid.toFixed(2)}</div></div>
+    <div class="month-stat"><div class="month-stat-label">${state.name2}</div><div class="month-stat-val">€ ${p2paid.toFixed(2)}</div></div>`;
+
+  const catTotals = {};
+  Object.keys(CATS).forEach(k => catTotals[k] = 0);
+  entries.forEach(e => { if (catTotals[e.cat] !== undefined) catTotals[e.cat] += e.amount; });
+  const maxCat = Math.max(...Object.values(catTotals), 0.01);
+  document.getElementById('month-cats').innerHTML = Object.entries(CATS).map(([k, lbl]) => {
+    const v = catTotals[k] || 0;
+    return `<div class="cat-row">
+      <div class="cat-row-top"><span>${lbl}</span><span>€ ${v.toFixed(2)}</span></div>
+      <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${Math.round(v/maxCat*100)}%"></div></div>
+    </div>`;
+  }).join('');
+
+  let settle = '';
+  if (total === 0) {
+    settle = '<div class="empty" style="padding:.5rem 0">Keine Einträge.</div>';
+  } else if (Math.abs(p1diff) < 0.01) {
+    settle = `<div class="settle-line" style="color:var(--green)">Alles ausgeglichen ✓</div>`;
+  } else if (p1diff > 0) {
+    settle = `<div class="settle-line">${state.name2} zahlt ${state.name1}: <span class="settle-amount" style="color:var(--green)">€ ${Math.abs(p1diff).toFixed(2)}</span></div>`;
+  } else {
+    settle = `<div class="settle-line">${state.name1} zahlt ${state.name2}: <span class="settle-amount" style="color:var(--red)">€ ${Math.abs(p1diff).toFixed(2)}</span></div>`;
+  }
+  document.getElementById('month-settle').innerHTML = settle;
+}
+
+function applySettingsForm() {
+  document.getElementById('s-name1').value  = state.name1;
+  document.getElementById('s-name2').value  = state.name2;
+  document.getElementById('s-split1').value = state.split1;
+  document.getElementById('s-split2').value = state.split2;
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+
+async function addEntry() {
+  const desc   = document.getElementById('f-desc').value.trim();
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  const who    = document.getElementById('f-who').value;
+  const cat    = document.getElementById('f-cat').value;
+  const date   = document.getElementById('f-date').value.trim() || today();
+  const msg    = document.getElementById('add-msg');
+
+  if (!desc || isNaN(amount) || amount <= 0) {
+    msg.textContent = 'Beschreibung und Betrag erforderlich.';
+    msg.className = 'add-msg err'; return;
+  }
+  state.entries.push({ id: Date.now(), desc, amount, who, cat, date });
+  await persist();
+  document.getElementById('f-desc').value   = '';
+  document.getElementById('f-amount').value = '';
+  document.getElementById('f-date').value   = today();
+  msg.className = 'add-msg';
+  msg.textContent = 'Eingetragen ✓';
+  setTimeout(() => msg.textContent = '', 1500);
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Eintrag löschen?')) return;
+  state.entries = state.entries.filter(e => e.id !== id);
+  await persist();
+}
+
+async function saveSettings() {
+  state.name1  = document.getElementById('s-name1').value.trim()  || 'Person 1';
+  state.name2  = document.getElementById('s-name2').value.trim()  || 'Person 2';
+  state.split1 = parseInt(document.getElementById('s-split1').value) || 50;
+  state.split2 = parseInt(document.getElementById('s-split2').value) || 50;
+  await persistSettings();
+  // Also update local config
+  const cfg = loadConfig();
+  if (cfg) { cfg.name1 = state.name1; cfg.name2 = state.name2; localStorage.setItem('ftracker_cfg', JSON.stringify(cfg)); }
+  renderAll();
+  const m = document.getElementById('save-msg');
+  m.textContent = 'Gespeichert ✓';
+  setTimeout(() => m.textContent = '', 2000);
+}
+
+function syncSplit(which) {
+  const v = parseInt(document.getElementById('s-split' + which).value) || 0;
+  document.getElementById('s-split' + (which === 1 ? 2 : 1)).value = Math.max(0, 100 - v);
+}
+
+async function clearAll() {
+  if (!confirm('Wirklich alle Einträge löschen? Das kann nicht rückgängig gemacht werden.')) return;
+  state.entries = [];
+  await persist();
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+
+function showTab(name) {
+  activeTab = name;
+  ['add','list','month','settings'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('nav-' + t).classList.toggle('active', t === name);
+  });
+  if (name === 'list')     renderFullList();
+  if (name === 'month')    { populateMonthSel(); renderMonth(); }
+  if (name === 'settings') applySettingsForm();
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+
+document.getElementById('f-date').value = today();
+
+const cfg = loadConfig();
+if (cfg && cfg.apiKey) {
+  initFirebase(cfg);
+} else {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+</script>
+</body>
+</html>
