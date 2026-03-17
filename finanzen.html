@@ -371,6 +371,18 @@ html, body { font-family: 'DM Mono', monospace; background: #F5F7FA; color: #1a3
       <div class="nav-dot"></div><div class="nav-icon">⚙</div><div class="nav-label">Einstellungen</div>
     </div>
   </nav>
+
+<div id="delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:600;display:none;align-items:flex-end;justify-content:center;">
+  <div style="background:#F5F7FA;border-radius:16px 16px 0 0;padding:1.5rem;width:100%;max-width:480px;box-shadow:0 -4px 24px rgba(0,0,0,0.15);">
+    <div style="font-family:'Fraunces',Georgia,serif;font-size:18px;font-weight:400;font-style:italic;color:#C44035;margin-bottom:0.5rem;">Alle Einträge löschen?</div>
+    <p style="font-size:12px;color:#4A6080;line-height:1.6;margin-bottom:1rem;">Das kann nicht rückgängig gemacht werden. Firebase-Daten werden permanent gelöscht.<br><br>Tippe <strong style="color:#1a3a6b">löschen</strong> ein um zu bestätigen:</p>
+    <input type="text" id="delete-confirm-input" placeholder="löschen" style="width:100%;background:#EBF0F7;border:0.5px solid rgba(16,78,139,0.18);border-radius:10px;padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:#1a3a6b;outline:none;margin-bottom:10px;" />
+    <div style="display:flex;gap:8px;">
+      <button onclick="document.getElementById('delete-modal').style.display='none'" style="flex:1;background:#EBF0F7;color:#4A6080;border:0.5px solid rgba(16,78,139,0.18);border-radius:10px;padding:12px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;">Abbrechen</button>
+      <button onclick="confirmDeleteAll()" id="delete-confirm-btn" style="flex:1;background:#C44035;color:white;border:none;border-radius:10px;padding:12px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;opacity:0.4;" disabled>Löschen</button>
+    </div>
+  </div>
+</div>
 </div>
 
 <div id="edit-modal" class="modal-overlay" style="display:none" onclick="closeModal(event)">
@@ -480,6 +492,156 @@ function curMonthKey() { return monthKey(today()); }
 function curYear() { return '20' + today().split('.')[2]; }
 function pname(who) { return who === 'p1' ? state.name1 : state.name2; }
 
+function renderAll() {
+  applyNames();
+  renderDashboard();
+  renderRecentList();
+  if (activeTab === 'list')     renderFullList();
+  if (activeTab === 'month')    { populateMonthSel(); renderMonth(); renderYearOverview(); }
+  if (activeTab === 'settings') applySettingsForm();
+}
+
+function applyNames() {
+  ['opt-p1a','opt-p1b'].forEach(id => { const el = document.getElementById(id); if(el) el.text = state.name1; });
+  ['opt-p2a','opt-p2b'].forEach(id => { const el = document.getElementById(id); if(el) el.text = state.name2; });
+  document.getElementById('dash-lbl1').textContent = state.name1;
+  document.getElementById('dash-lbl2').textContent = state.name2;
+  document.getElementById('split-lbl1').textContent = state.name1;
+  document.getElementById('split-lbl2').textContent = state.name2;
+  document.getElementById('fc-p1').textContent = state.name1;
+  document.getElementById('fc-p2').textContent = state.name2;
+}
+
+function renderDashboard() {
+  const cur = curMonthKey();
+  const entries = state.entries.filter(e => monthKey(e.date) === cur);
+  const total = entries.reduce((s,e) => s+e.amount, 0);
+  const p1paid = entries.filter(e => e.who==='p1').reduce((s,e) => s+e.amount, 0);
+  const p2paid = entries.filter(e => e.who==='p2').reduce((s,e) => s+e.amount, 0);
+  const p1share = total*(state.split1/100);
+  const p1diff = p1paid - p1share;
+  document.getElementById('dash-month').textContent = monthLabel(cur);
+  document.getElementById('dash-total').textContent = '\u20ac ' + total.toFixed(2);
+  document.getElementById('dash-p1').textContent = '\u20ac ' + p1paid.toFixed(2);
+  document.getElementById('dash-p2').textContent = '\u20ac ' + p2paid.toFixed(2);
+  const sv = document.getElementById('dash-settle');
+  if (total === 0) { sv.textContent = '\u2014'; sv.className = 'dash-settle-val neu'; }
+  else if (Math.abs(p1diff) < 0.01) { sv.textContent = 'Ausgeglichen \u2713'; sv.className = 'dash-settle-val ok'; }
+  else if (p1diff > 0) { sv.textContent = state.name2 + ' \u2192 ' + state.name1 + '  \u20ac ' + Math.abs(p1diff).toFixed(2); sv.className = 'dash-settle-val ok'; }
+  else { sv.textContent = state.name1 + ' \u2192 ' + state.name2 + '  \u20ac ' + Math.abs(p1diff).toFixed(2); sv.className = 'dash-settle-val owe'; }
+}
+
+function entryHTML(e) {
+  return '<div class="entry">' +
+    '<div class="entry-left">' +
+      '<div class="entry-desc">' + e.desc + '</div>' +
+      (e.note ? '<div class="entry-note">' + e.note + '</div>' : '') +
+      '<div class="entry-meta">' +
+        '<span class="entry-date">' + e.date + '</span>' +
+        '<span class="entry-cat">' + (CATS[e.cat]||e.cat) + '</span>' +
+        '<span class="entry-who">' + pname(e.who) + '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="entry-right">' +
+      '<span class="entry-amount">\u20ac ' + e.amount.toFixed(2) + '</span>' +
+      '<div class="entry-actions">' +
+        '<span class="entry-btn" onclick="openEdit(' + e.id + ')">\u270e</span>' +
+        '<span class="entry-btn del" onclick="deleteEntry(' + e.id + ')">\u2715</span>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderRecentList() {
+  const el = document.getElementById('recent-list');
+  const sorted = [...state.entries].sort((a,b) => b.id-a.id).slice(0,5);
+  el.innerHTML = sorted.length ? sorted.map(entryHTML).join('') : '<div class="empty">Noch nichts eingetragen.</div>';
+}
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderFullList();
+}
+
+function renderFullList() {
+  const el = document.getElementById('full-list');
+  let entries = [...state.entries].sort((a,b) => b.id-a.id);
+  if (activeFilter === 'p1' || activeFilter === 'p2') entries = entries.filter(e => e.who === activeFilter);
+  else if (activeFilter !== 'alle') entries = entries.filter(e => e.cat === activeFilter);
+  el.innerHTML = entries.length ? entries.map(entryHTML).join('') : '<div class="empty">Keine Eintr\u00e4ge gefunden.</div>';
+}
+
+function populateMonthSel() {
+  const keys = [...new Set(state.entries.map(e => monthKey(e.date)))].sort().reverse();
+  if (!keys.length) keys.push(curMonthKey());
+  const sel = document.getElementById('month-sel');
+  const cur = sel.value;
+  sel.innerHTML = keys.map(k => '<option value="' + k + '">' + monthLabel(k) + '</option>').join('');
+  if (cur && keys.includes(cur)) sel.value = cur;
+}
+
+function renderMonth() {
+  const key = document.getElementById('month-sel').value;
+  const entries = state.entries.filter(e => monthKey(e.date) === key);
+  const total = entries.reduce((s,e) => s+e.amount, 0);
+  const p1paid = entries.filter(e => e.who==='p1').reduce((s,e) => s+e.amount, 0);
+  const p2paid = entries.filter(e => e.who==='p2').reduce((s,e) => s+e.amount, 0);
+  const p1share = total*(state.split1/100);
+  const p2share = total*(state.split2/100);
+  const p1diff = p1paid - p1share;
+  document.getElementById('month-grid').innerHTML =
+    '<div class="month-stat"><div class="month-stat-label">Gesamt</div><div class="month-stat-val">\u20ac ' + total.toFixed(2) + '</div></div>' +
+    '<div class="month-stat"><div class="month-stat-label">Split ' + state.split1 + '/' + state.split2 + '</div><div class="month-stat-val" style="font-size:15px">\u20ac ' + p1share.toFixed(0) + ' / ' + p2share.toFixed(0) + '</div></div>' +
+    '<div class="month-stat"><div class="month-stat-label">' + state.name1 + '</div><div class="month-stat-val">\u20ac ' + p1paid.toFixed(2) + '</div></div>' +
+    '<div class="month-stat"><div class="month-stat-label">' + state.name2 + '</div><div class="month-stat-val">\u20ac ' + p2paid.toFixed(2) + '</div></div>';
+  const catTotals = {};
+  Object.keys(CATS).forEach(k => catTotals[k] = 0);
+  entries.forEach(e => { if (catTotals[e.cat]!==undefined) catTotals[e.cat] += e.amount; });
+  const maxCat = Math.max(...Object.values(catTotals), 0.01);
+  document.getElementById('month-cats').innerHTML = Object.entries(CATS).map(([k,lbl]) => {
+    const v = catTotals[k]||0;
+    return '<div class="cat-row"><div class="cat-row-top"><span>' + lbl + '</span><span>\u20ac ' + v.toFixed(2) + '</span></div><div class="cat-bar-track"><div class="cat-bar-fill" style="width:' + Math.round(v/maxCat*100) + '%"></div></div></div>';
+  }).join('');
+  let settle = '';
+  if (total === 0) settle = '<div class="empty" style="padding:.5rem 0">Keine Eintr\u00e4ge.</div>';
+  else if (Math.abs(p1diff) < 0.01) settle = '<div class="settle-line" style="color:#2A7A5A">Alles ausgeglichen \u2713</div>';
+  else if (p1diff > 0) settle = '<div class="settle-line">' + state.name2 + ' zahlt an ' + state.name1 + '<span class="settle-amount green">\u20ac ' + Math.abs(p1diff).toFixed(2) + '</span></div>';
+  else settle = '<div class="settle-line">' + state.name1 + ' zahlt an ' + state.name2 + '<span class="settle-amount red">\u20ac ' + Math.abs(p1diff).toFixed(2) + '</span></div>';
+  document.getElementById('month-settle').innerHTML = settle;
+}
+
+function renderYearOverview() {
+  const yearSuffix = today().split('.')[2];
+  const allThisYear = state.entries.filter(e => e.date.endsWith(yearSuffix));
+  const keys = [...new Set(allThisYear.map(e => monthKey(e.date)))].sort().reverse();
+  const yearTotal = allThisYear.reduce((s,e) => s+e.amount, 0);
+  let html = '<div class="year-total-card"><div><div class="year-total-label">Gesamt 20' + yearSuffix + '</div></div><div class="year-total-val">\u20ac ' + yearTotal.toFixed(2) + '</div></div>';
+  html += keys.map(k => {
+    const entries = state.entries.filter(e => monthKey(e.date) === k);
+    const total = entries.reduce((s,e) => s+e.amount, 0);
+    const p1paid = entries.filter(e => e.who==='p1').reduce((s,e) => s+e.amount, 0);
+    const p1share = total*(state.split1/100);
+    const p1diff = p1paid - p1share;
+    let settleText = '', settleClass = '';
+    if (total > 0) {
+      if (Math.abs(p1diff) < 0.01) { settleText = 'Ausgeglichen'; settleClass = 'green'; }
+      else if (p1diff > 0) { settleText = state.name2 + ' \u2192 \u20ac ' + Math.abs(p1diff).toFixed(2); settleClass = 'green'; }
+      else { settleText = state.name1 + ' \u2192 \u20ac ' + Math.abs(p1diff).toFixed(2); settleClass = 'red'; }
+    }
+    return '<div class="year-row"><div><div class="year-row-month">' + monthLabel(k) + '</div><div class="year-row-count">' + entries.length + ' Eintr\u00e4ge</div></div><div class="year-row-right"><div class="year-row-total">\u20ac ' + total.toFixed(2) + '</div><div class="year-row-settle ' + settleClass + '">' + settleText + '</div></div></div>';
+  }).join('');
+  document.getElementById('year-overview').innerHTML = html;
+}
+
+function applySettingsForm() {
+  document.getElementById('s-name1').value = state.name1;
+  document.getElementById('s-name2').value = state.name2;
+  document.getElementById('s-split1').value = state.split1;
+  document.getElementById('s-split2').value = state.split2;
+}
+
 
 async function addEntry() {
   const desc = document.getElementById('f-desc').value.trim();
@@ -552,9 +714,27 @@ function syncSplit(which) {
   document.getElementById('s-split' + (which===1?2:1)).value = Math.max(0, 100-v);
 }
 
-async function clearAll() {
-  if (!confirm('Wirklich alle Einträge löschen? Das kann nicht rückgängig gemacht werden.')) return;
-  state.entries = []; await persist();
+function clearAll() {
+  const modal = document.getElementById('delete-modal');
+  const input = document.getElementById('delete-confirm-input');
+  const btn = document.getElementById('delete-confirm-btn');
+  input.value = '';
+  btn.disabled = true;
+  btn.style.opacity = '0.4';
+  modal.style.display = 'flex';
+  input.oninput = function() {
+    const ok = input.value.trim().toLowerCase() === 'löschen';
+    btn.disabled = !ok;
+    btn.style.opacity = ok ? '1' : '0.4';
+  };
+}
+
+async function confirmDeleteAll() {
+  const input = document.getElementById('delete-confirm-input');
+  if (input.value.trim().toLowerCase() !== 'löschen') return;
+  document.getElementById('delete-modal').style.display = 'none';
+  state.entries = [];
+  await persist();
 }
 
 function exportCSV() {
@@ -580,17 +760,6 @@ function showTab(name) {
   if (name==='settings') applySettingsForm();
 }
 
-
-
-// background-position per photo: x% y%
-const PHOTO_POS = [
-  'center 35%',  // kayak - faces in middle area
-  'center 30%',  // crowns - faces center
-  'center 20%',  // elevator - faces upper
-  'center 40%',  // pool - faces center
-  'center 20%',  // helmets - faces upper
-  'center 15%',  // sofa - faces upper
-];
 
 
 document.getElementById('f-date').value = today();
