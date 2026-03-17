@@ -198,6 +198,12 @@ body,html{font-family:"DM Mono",monospace;background:#F5F7FA;color:#1a3a6b;min-h
   <div class="load-title">Finanzen</div>
 </div>
 
+
+<div id="who-screen" style="display:none;position:fixed;inset:0;background:#F5F7FA;z-index:900;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:2rem">
+  <div style="font-family:'Fraunces',serif;font-size:26px;font-weight:300;font-style:italic;color:#1a3a6b;text-align:center">Wer bist du?</div>
+  <div style="font-size:12px;color:#8AAAC8;text-align:center">Einmalige Frage — wird lokal gespeichert.</div>
+  <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px" id="who-buttons"></div>
+</div>
 <div id="setup" style="display:none">
   <div class="setup-title">Finanzen</div>
   <div class="setup-sub">Einmalige Einrichtung</div>
@@ -311,8 +317,6 @@ body,html{font-family:"DM Mono",monospace;background:#F5F7FA;color:#1a3a6b;min-h
       <div class="slabel" style="margin-top:1rem">Ausgleich</div>
       <div id="month-settle-miete"></div>
       <div id="month-settle-alltag"></div>
-      <div class="slabel" style="margin-top:1rem">Jahres&uuml;bersicht</div>
-      <div id="year-overview"></div>
       <button class="btn-export" onclick="exportCSV()">Als CSV exportieren</button>
     </div>
   </div>
@@ -320,17 +324,36 @@ body,html{font-family:"DM Mono",monospace;background:#F5F7FA;color:#1a3a6b;min-h
   <!-- TAB: JAHRESABSCHLUSS -->
   <div id="tab-jahr" class="tab">
     <div class="section">
-      <div class="slabel">Jahresabschluss</div>
-      <div class="card">
-        <div style="font-size:11px;color:#4A6080;line-height:1.7;margin-bottom:1rem">Tragt hier am Jahresende eure echten Jahresnettoeinkommen ein. Die App berechnet den korrekten Split f&uuml;r alle Miete/NK-Eintr&auml;ge und zeigt die finale Ausgleichssumme.</div>
-        <div class="row2" style="margin-bottom:10px">
-          <div class="field"><label id="jahr-lbl1">Wouter (&euro;)</label><input type="number" id="jahr-inc1" placeholder="z.B. 35000" inputmode="decimal"/></div>
-          <div class="field"><label id="jahr-lbl2">Romina (&euro;)</label><input type="number" id="jahr-inc2" placeholder="z.B. 28000" inputmode="decimal"/></div>
-        </div>
-        <div class="field"><label>Jahr</label><select id="jahr-year"></select></div>
-        <button class="btn-add" onclick="calcJahr()">Berechnen</button>
+      <div class="slabel">Miete/NK Split</div>
+      <!-- Mode toggle -->
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="chip active" id="jahr-mode-laufend" onclick="setJahrMode('laufend',this)">Laufend (Sch&auml;tzung)</button>
+        <button class="chip" id="jahr-mode-abschluss" onclick="setJahrMode('abschluss',this)">Jahresabschluss</button>
       </div>
-      <div id="jahr-result"></div>
+      <!-- Laufend mode -->
+      <div id="jahr-laufend-section" class="card" style="margin-bottom:12px">
+        <div style="font-size:11px;color:#4A6080;line-height:1.7;margin-bottom:1rem">Gebt hier eine Einkommenssch&auml;tzung ein. Die App benutzt diesen Split f&uuml;r alle laufenden Miete/NK-Berechnungen.</div>
+        <div class="row2" style="margin-bottom:10px">
+          <div class="field"><label id="lauf-lbl1">Wouter (&euro;)</label><input type="number" id="lauf-inc1" placeholder="z.B. 35000" inputmode="decimal"/></div>
+          <div class="field"><label id="lauf-lbl2">Romina (&euro;)</label><input type="number" id="lauf-inc2" placeholder="z.B. 28000" inputmode="decimal"/></div>
+        </div>
+        <div id="lauf-preview" style="font-size:12px;color:#4A6080;margin-bottom:10px"></div>
+        <button class="btn-add" onclick="saveLaufend()">Split speichern</button>
+        <div class="save-msg" id="lauf-msg"></div>
+      </div>
+      <!-- Abschluss mode -->
+      <div id="jahr-abschluss-section" style="display:none">
+        <div class="card" style="margin-bottom:12px">
+          <div style="font-size:11px;color:#4A6080;line-height:1.7;margin-bottom:1rem">Tragt am Jahresende eure echten Jahresnettoeinkommen ein. Die App berechnet den finalen Ausgleich.</div>
+          <div class="row2" style="margin-bottom:10px">
+            <div class="field"><label id="jahr-lbl1">Wouter (&euro;)</label><input type="number" id="jahr-inc1" placeholder="z.B. 35000" inputmode="decimal"/></div>
+            <div class="field"><label id="jahr-lbl2">Romina (&euro;)</label><input type="number" id="jahr-inc2" placeholder="z.B. 28000" inputmode="decimal"/></div>
+          </div>
+          <div class="field"><label>Jahr</label><select id="jahr-year"></select></div>
+          <button class="btn-add" onclick="calcJahr()">Berechnen</button>
+        </div>
+        <div id="jahr-result"></div>
+      </div>
     </div>
   </div>
 
@@ -343,18 +366,14 @@ body,html{font-family:"DM Mono",monospace;background:#F5F7FA;color:#1a3a6b;min-h
           <div class="field"><label>Person 1</label><input type="text" id="s-name1"/></div>
           <div class="field"><label>Person 2</label><input type="text" id="s-name2"/></div>
         </div>
-        <div class="slabel" style="margin-top:12px">Split Miete/NK (Sch&auml;tzung)</div>
-        <div class="split-row" style="margin-top:8px">
-          <span class="split-name" id="split-lbl1">Wouter</span>
-          <input type="number" class="split-inp" id="s-split1" min="0" max="100" step="1" value="50" oninput="syncSplit(1)"/>
-          <span style="font-size:12px;color:#4A6080">%</span>
+        <div class="field" style="margin-top:4px">
+          <label>Ich bin</label>
+          <select id="s-me" onchange="saveMe(this.value);applyMeSettings();renderDashboard()">
+            <option value="p1" id="s-me-p1">Wouter</option>
+            <option value="p2" id="s-me-p2">Romina</option>
+          </select>
         </div>
-        <div class="split-row">
-          <span class="split-name" id="split-lbl2">Romina</span>
-          <input type="number" class="split-inp" id="s-split2" min="0" max="100" step="1" value="50" oninput="syncSplit(2)"/>
-          <span style="font-size:12px;color:#4A6080">%</span>
-        </div>
-        <div class="split-hint">Gilt nur f&uuml;r Miete/NK. Alles andere wird 50/50 geteilt.<br>Zum Jahresende anpassen wenn Einkommen feststehen.</div>
+        <div class="split-hint" style="margin-top:8px">Der Miete/NK-Split wird im <strong>Jahresabschluss</strong>-Tab eingestellt &mdash; als laufende Sch&auml;tzung oder finaler Jahresabschluss.</div>
         <button class="btn-save" onclick="saveSettings()">Speichern</button>
         <div class="save-msg" id="save-msg"></div>
       </div>
@@ -424,6 +443,9 @@ var activeFilter = 'alle';
 
 // ── CONFIG ──────────────────────────────────────────────────────
 function loadCfg() { try { return JSON.parse(localStorage.getItem('ft_cfg')||'null'); } catch(e) { return null; } }
+function loadMe() { return localStorage.getItem('ft_me') || null; }
+function saveMe(who) { localStorage.setItem('ft_me', who); }
+function getMe() { return loadMe(); }
 
 function saveConfig() {
   var apiKey = document.getElementById('cfg-apiKey').value.trim();
@@ -490,7 +512,35 @@ function persistSettings() { if (!db) return; db.collection('tracker').doc('sett
 function showApp() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('setup').style.display = 'none';
+  if (!loadMe()) {
+    // Show who-am-I screen
+    var ws = document.getElementById('who-screen');
+    var wb = document.getElementById('who-buttons');
+    wb.innerHTML = ['p1','p2'].map(function(who) {
+      var n = who==='p1' ? state.name1 : state.name2;
+      return '<button onclick="chooseMe(\'' + who + '\')" style="width:100%;background:#104e8b;color:#fff;border:none;border-radius:12px;padding:16px;font-family:DM Mono,monospace;font-size:14px;cursor:pointer">'+n+'</button>';
+    }).join('');
+    ws.style.display = 'flex';
+    return;
+  }
   document.getElementById('app').style.display = 'block';
+  applyMeSettings();
+}
+
+function chooseMe(who) {
+  saveMe(who);
+  document.getElementById('who-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  applyMeSettings();
+  renderAll();
+}
+
+function applyMeSettings() {
+  var me = loadMe();
+  if (!me) return;
+  // Set default "paid by" to me
+  var fwho = document.getElementById('f-who');
+  if (fwho) fwho.value = me;
 }
 
 // ── HELPERS ─────────────────────────────────────────────────────
@@ -532,17 +582,22 @@ function calcOpenSaldo() {
 
 // ── CUMULATIVE SALDO UP TO MONTH ─────────────────────────────────
 function calcCumulativeSaldo(upToMonthKey) {
-  // Include all entries up to and including the given month key (MM.YY)
-  var upToParts = upToMonthKey.split('.');
-  var upToYear = parseInt(upToParts[1]);
-  var upToMonth = parseInt(upToParts[0]);
+  var isYearMode = upToMonthKey.startsWith('year:');
+  var filterYear = isYearMode ? parseInt(upToMonthKey.slice(5).slice(2)) : null;
+  var upToParts = isYearMode ? null : upToMonthKey.split('.');
+  var upToYear = isYearMode ? null : parseInt(upToParts[1]);
+  var upToMonth = isYearMode ? null : parseInt(upToParts[0]);
   var miete = 0, alltag = 0;
   state.entries.forEach(function(e) {
     var eParts = mKey(e.date).split('.');
     var eYear = parseInt(eParts[1]);
     var eMonth = parseInt(eParts[0]);
-    // Only include entries up to and including the selected month
-    if (eYear > upToYear || (eYear === upToYear && eMonth > upToMonth)) return;
+    // Filter by year or cumulative up to month
+    if (isYearMode) {
+      if (eYear !== filterYear) return;
+    } else {
+      if (eYear > upToYear || (eYear === upToYear && eMonth > upToMonth)) return;
+    }
     if (e.isSettlement) {
       var amt = e.who === 'p2' ? e.amount : -e.amount;
       if (e.settlementType === 'miete') miete -= amt;
@@ -608,28 +663,39 @@ function renderDashboard() {
   var d = new Date();
   document.getElementById('dash-month').textContent = MONTHS[d.getMonth()+1]+' '+d.getFullYear();
   var saldo = calcOpenSaldo();
-  function setSaldo(elVal, elHint, diff, name1, name2) {
+  var me = loadMe();
+  // diff > 0 means p2 owes p1
+  // From my perspective: positive = I am owed money (good = green), negative = I owe (bad = red)
+  function myDiff(diff) {
+    return me === 'p1' ? diff : -diff;
+  }
+  function setSaldo(elVal, elHint, diff) {
     var el = document.getElementById(elVal);
     var hint = document.getElementById(elHint);
+    var myD = myDiff(diff);
     if (Math.abs(diff) < 0.01) {
       el.textContent = '\u20ac 0.00';
       el.className = 'dash-saldo-val zero';
       hint.textContent = 'Ausgeglichen \u2713';
       hint.className = 'dash-settle-hint ok';
-    } else if (diff > 0) {
-      el.textContent = '\u20ac '+diff.toFixed(2);
+    } else if (myD > 0) {
+      // I am owed money — green for me
+      var owes = me === 'p1' ? state.name2 : state.name1;
+      el.textContent = '\u20ac '+Math.abs(diff).toFixed(2);
       el.className = 'dash-saldo-val ok';
-      hint.textContent = name2+' schuldet';
+      hint.textContent = owes+' schuldet mir';
       hint.className = 'dash-settle-hint ok';
     } else {
+      // I owe money — red for me
+      var oweeTo = me === 'p1' ? state.name2 : state.name1;
       el.textContent = '\u20ac '+Math.abs(diff).toFixed(2);
       el.className = 'dash-saldo-val owe';
-      hint.textContent = name1+' schuldet';
+      hint.textContent = 'Ich schulde '+oweeTo;
       hint.className = 'dash-settle-hint owe';
     }
   }
-  setSaldo('dash-miete-val','dash-miete-hint', saldo.miete, state.name1, state.name2);
-  setSaldo('dash-alltag-val','dash-alltag-hint', saldo.alltag, state.name1, state.name2);
+  setSaldo('dash-miete-val','dash-miete-hint', saldo.miete);
+  setSaldo('dash-alltag-val','dash-alltag-hint', saldo.alltag);
 }
 
 function entryHTML(e) {
@@ -679,15 +745,30 @@ function populateMSel() {
   state.entries.forEach(function(e){ var k=mKey(e.date); if(keys.indexOf(k)===-1) keys.push(k); });
   keys.sort().reverse();
   if (!keys.length) keys.push(curMKey());
+  // Collect unique years
+  var years = [];
+  keys.forEach(function(k){ var y='20'+k.split('.')[1]; if(years.indexOf(y)===-1) years.push(y); });
+  years.sort().reverse();
   var sel = document.getElementById('month-sel');
   var cur = sel.value;
-  sel.innerHTML = keys.map(function(k){return '<option value="'+k+'">'+mLabel(k)+'</option>';}).join('');
-  if (cur && keys.indexOf(cur)!==-1) sel.value = cur;
+  var opts = '';
+  years.forEach(function(y) {
+    opts += '<option value="year:'+y+'">'+y+'</option>';
+    keys.filter(function(k){ return '20'+k.split('.')[1]===y; }).forEach(function(k){
+      opts += '<option value="'+k+'">&nbsp;&nbsp;'+mLabel(k)+'</option>';
+    });
+  });
+  sel.innerHTML = opts;
+  if (cur && (keys.indexOf(cur)!==-1 || cur.startsWith('year:'))) sel.value = cur;
 }
 
 function renderMonth() {
   var key = document.getElementById('month-sel').value;
-  var entries = state.entries.filter(function(e){return mKey(e.date)===key;});
+  var isYear = key.startsWith('year:');
+  var yearVal = isYear ? key.slice(5) : null;
+  var entries = isYear
+    ? state.entries.filter(function(e){ return ('20'+e.date.split('.')[2])===yearVal; })
+    : state.entries.filter(function(e){return mKey(e.date)===key;});
   var realEntries = entries.filter(function(e){return !e.isSettlement;});
 
   // Stats
@@ -721,11 +802,11 @@ function renderMonth() {
   document.getElementById('month-cats').innerHTML = catHTML;
 
   // Settle blocks: show cumulative saldo up to and including selected month
-  var cumSaldo = calcCumulativeSaldo(key);
-  renderSettleBlock('month-settle-miete', 'Miete / NK', '('+state.split1+'/'+state.split2+' \u2014 einkommensbasiert, Sch\u00e4tzung)', cumSaldo.miete, null, 'miete', key);
-  renderSettleBlock('month-settle-alltag', 'Alltag', '(50/50)', cumSaldo.alltag, null, 'alltag', key);
+  var settleKey = isYear ? curMKey() : key;
+  var cumSaldo = calcCumulativeSaldo(isYear ? ('year:'+yearVal) : key);
+  renderSettleBlock('month-settle-miete', 'Miete / NK', '('+state.split1+'/'+state.split2+' \u2014 einkommensbasiert, Sch\u00e4tzung)', cumSaldo.miete, null, 'miete', settleKey);
+  renderSettleBlock('month-settle-alltag', 'Alltag', '(50/50)', cumSaldo.alltag, null, 'alltag', settleKey);
 
-  renderYearOverview();
 }
 
 function renderSettleBlock(containerId, title, subtitle, p1diff, total, type, monthKey) {
@@ -765,25 +846,37 @@ function markSettled(mk, p1diff, type) {
   persist();
 }
 
-function renderYearOverview() {
-  var ys = today().split('.')[2];
-  var allYear = state.entries.filter(function(e){return e.date.endsWith(ys)&&!e.isSettlement;});
-  var keys = [];
-  allYear.forEach(function(e){var k=mKey(e.date);if(keys.indexOf(k)===-1)keys.push(k);});
-  keys.sort().reverse();
-  var yearTotal = allYear.reduce(function(s,e){return s+e.amount;},0);
-  var html = '<div class="year-total"><div><div class="year-total-label">Gesamt 20'+ys+'</div></div><div class="year-total-val">\u20ac '+yearTotal.toFixed(2)+'</div></div>';
-  html += keys.map(function(k) {
-    var es = state.entries.filter(function(e){return mKey(e.date)===k&&!e.isSettlement;});
-    var t = es.reduce(function(s,e){return s+e.amount;},0);
-    var ms = calcMonthSaldo(es);
-    var totalDiff = ms.miete.p1diff + ms.alltag.p1diff;
-    var scls = Math.abs(totalDiff)<0.01 ? '' : (totalDiff>0 ? 'green' : 'red');
-    var st = Math.abs(totalDiff)<0.01?'Ausgeglichen':(totalDiff>0?state.name2:state.name1)+' schuldet \u20ac '+Math.abs(totalDiff).toFixed(2);
+function setJahrMode(mode, btn) {
+  document.querySelectorAll('#jahr-mode-laufend, #jahr-mode-abschluss').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('jahr-laufend-section').style.display = mode==='laufend' ? 'block' : 'none';
+  document.getElementById('jahr-abschluss-section').style.display = mode==='abschluss' ? 'block' : 'none';
+}
 
-    return '<div class="year-row"><div><div class="year-row-month">'+mLabel(k)+'</div><div class="year-row-count">'+es.length+' Eintr\u00e4ge</div></div><div><div class="year-row-total">\u20ac '+t.toFixed(2)+'</div><div class="year-row-settle '+scls+'">'+st+'</div></div></div>';
-  }).join('');
-  document.getElementById('year-overview').innerHTML = html;
+function updateLaufendPreview() {
+  var inc1 = parseFloat(document.getElementById('lauf-inc1').value);
+  var inc2 = parseFloat(document.getElementById('lauf-inc2').value);
+  var prev = document.getElementById('lauf-preview');
+  if (inc1 > 0 && inc2 > 0) {
+    var s1 = Math.round(inc1/(inc1+inc2)*100);
+    var s2 = 100-s1;
+    prev.textContent = state.name1+': '+s1+'% / '+state.name2+': '+s2+'%';
+  } else {
+    prev.textContent = '';
+  }
+}
+
+function saveLaufend() {
+  var inc1 = parseFloat(document.getElementById('lauf-inc1').value);
+  var inc2 = parseFloat(document.getElementById('lauf-inc2').value);
+  var msg = document.getElementById('lauf-msg');
+  if (!inc1||!inc2||inc1<=0||inc2<=0) { msg.textContent='Bitte beide Einkommen eingeben.'; msg.className='save-msg'; setTimeout(function(){msg.textContent='';},2000); return; }
+  state.split1 = Math.round(inc1/(inc1+inc2)*100);
+  state.split2 = 100-state.split1;
+  persistSettings();
+  msg.textContent = 'Split gespeichert: '+state.split1+'% / '+state.split2+'% ✓';
+  setTimeout(function(){msg.textContent='';},2500);
+  renderDashboard();
 }
 
 function initJahrTab() {
@@ -793,7 +886,20 @@ function initJahrTab() {
   years.sort().reverse();
   if (!years.length) years.push('20'+ys);
   var sel = document.getElementById('jahr-year');
-  sel.innerHTML = years.map(function(y){return '<option value="'+y+'">'+y+'</option>';}).join('');
+  if (sel) sel.innerHTML = years.map(function(y){return '<option value="'+y+'">'+y+'</option>';}).join('');
+  // Prefill laufend with current split if set
+  if (state.split1 !== 50 || state.split2 !== 50) {
+    // Reverse-calculate approximate income ratio
+    document.getElementById('lauf-inc1').value = state.split1;
+    document.getElementById('lauf-inc2').value = state.split2;
+    updateLaufendPreview();
+  }
+  document.getElementById('lauf-inc1').oninput = updateLaufendPreview;
+  document.getElementById('lauf-inc2').oninput = updateLaufendPreview;
+  document.getElementById('lauf-lbl1').textContent = state.name1+' (€)';
+  document.getElementById('lauf-lbl2').textContent = state.name2+' (€)';
+  if (document.getElementById('jahr-lbl1')) document.getElementById('jahr-lbl1').textContent = state.name1+' (€)';
+  if (document.getElementById('jahr-lbl2')) document.getElementById('jahr-lbl2').textContent = state.name2+' (€)';
 }
 
 function calcJahr() {
@@ -840,8 +946,12 @@ function calcJahr() {
 function applySettingsForm() {
   document.getElementById('s-name1').value = state.name1;
   document.getElementById('s-name2').value = state.name2;
-  document.getElementById('s-split1').value = state.split1;
-  document.getElementById('s-split2').value = state.split2;
+  if (document.getElementById('s-split1')) document.getElementById('s-split1').value = state.split1;
+  if (document.getElementById('s-split2')) document.getElementById('s-split2').value = state.split2;
+  var meEl = document.getElementById('s-me');
+  if (meEl) { meEl.value = loadMe()||'p1'; }
+  var mp1 = document.getElementById('s-me-p1'); if(mp1) mp1.text = state.name1;
+  var mp2 = document.getElementById('s-me-p2'); if(mp2) mp2.text = state.name2;
 }
 
 // ── ACTIONS ─────────────────────────────────────────────────────
