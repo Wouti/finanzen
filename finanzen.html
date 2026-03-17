@@ -530,6 +530,35 @@ function calcOpenSaldo() {
   return {miete:miete, alltag:alltag};
 }
 
+// ── CUMULATIVE SALDO UP TO MONTH ─────────────────────────────────
+function calcCumulativeSaldo(upToMonthKey) {
+  // Include all entries up to and including the given month key (MM.YY)
+  var upToParts = upToMonthKey.split('.');
+  var upToYear = parseInt(upToParts[1]);
+  var upToMonth = parseInt(upToParts[0]);
+  var miete = 0, alltag = 0;
+  state.entries.forEach(function(e) {
+    var eParts = mKey(e.date).split('.');
+    var eYear = parseInt(eParts[1]);
+    var eMonth = parseInt(eParts[0]);
+    // Only include entries up to and including the selected month
+    if (eYear > upToYear || (eYear === upToYear && eMonth > upToMonth)) return;
+    if (e.isSettlement) {
+      var amt = e.who === 'p2' ? e.amount : -e.amount;
+      if (e.settlementType === 'miete') miete -= amt;
+      else alltag -= amt;
+    } else {
+      var paid = e.who === 'p1' ? e.amount : 0;
+      var splitPct = e.cat === 'miete' ? state.split1/100 : 0.5;
+      var share = e.amount * splitPct;
+      var diff = paid - share;
+      if (e.cat === 'miete') miete += diff;
+      else alltag += diff;
+    }
+  });
+  return {miete: miete, alltag: alltag};
+}
+
 // ── MONTH SALDO ──────────────────────────────────────────────────
 function calcMonthSaldo(entries) {
   var miete = {total:0, p1paid:0, p1share:0};
@@ -691,10 +720,10 @@ function renderMonth() {
   });
   document.getElementById('month-cats').innerHTML = catHTML;
 
-  // Settle blocks
-  var ms = calcMonthSaldo(entries);
-  renderSettleBlock('month-settle-miete', 'Miete / NK', '('+state.split1+'/'+state.split2+' \u2014 einkommensbasiert, Sch\u00e4tzung)', ms.miete.p1diff, ms.miete.total, 'miete', key);
-  renderSettleBlock('month-settle-alltag', 'Alltag', '(50/50)', ms.alltag.p1diff, ms.alltag.total, 'alltag', key);
+  // Settle blocks: show cumulative saldo up to and including selected month
+  var cumSaldo = calcCumulativeSaldo(key);
+  renderSettleBlock('month-settle-miete', 'Miete / NK', '('+state.split1+'/'+state.split2+' \u2014 einkommensbasiert, Sch\u00e4tzung)', cumSaldo.miete, null, 'miete', key);
+  renderSettleBlock('month-settle-alltag', 'Alltag', '(50/50)', cumSaldo.alltag, null, 'alltag', key);
 
   renderYearOverview();
 }
@@ -705,9 +734,7 @@ function renderSettleBlock(containerId, title, subtitle, p1diff, total, type, mo
   var html = '<div class="settle-block">'
     +'<div class="settle-block-title">'+title+' <span style="opacity:.6;font-weight:300">'+subtitle+'</span></div>';
 
-  if (total <= 0 && Math.abs(p1diff) < 0.01) {
-    html += '<div class="empty" style="padding:.5rem 0;font-size:11px">Keine Eintr\u00e4ge.</div>';
-  } else if (Math.abs(p1diff) < 0.01) {
+  if (Math.abs(p1diff) < 0.01) {
     html += '<div class="settle-line" style="color:#2A7A5A">Ausgeglichen \u2713</div>';
   } else {
     var payer = p1diff > 0 ? state.name2 : state.name1;
