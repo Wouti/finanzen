@@ -493,6 +493,7 @@ function startSync() {
       state.entries = snap.exists ? (snap.data().list||[]) : [];
       document.getElementById('sync-st').textContent = 'Synchronisiert ' + new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
       showApp();
+      renderAll();
     }, function(err) {
       document.getElementById('sync-st').textContent = 'Sync-Fehler: ' + err.message;
     });
@@ -500,6 +501,7 @@ function startSync() {
     unsub = eRef.onSnapshot(function(snap) {
       state.entries = snap.exists ? (snap.data().list||[]) : [];
       showApp();
+      renderAll();
     });
   });
 }
@@ -522,11 +524,8 @@ function showApp() {
     return;
   }
   document.getElementById('app').style.display = 'block';
-  // Small delay to ensure DOM is ready
-  setTimeout(function() {
-    applyMeSettings();
-    renderAll();
-  }, 0);
+  applyMeSettings();
+  renderAll();
 }
 
 function chooseMe(who) {
@@ -645,59 +644,54 @@ function renderAll() {
   renderDashboard();
   renderRecentList();
   if (activeTab==='list')     renderFullList();
-  if (activeTab==='month')    { populateMSel(); renderMonth(); renderYearOverview(); }
+  if (activeTab==='month')    { populateMSel(); renderMonth(); }
   if (activeTab==='jahr')     initJahrTab();
   if (activeTab==='settings') applySettingsForm();
+  applyMeSettings();
 }
 
 function applyNames() {
   ['opt-p1a','opt-p1b'].forEach(function(id){ var el=document.getElementById(id); if(el) el.text=state.name1; });
   ['opt-p2a','opt-p2b'].forEach(function(id){ var el=document.getElementById(id); if(el) el.text=state.name2; });
-  document.getElementById('split-lbl1').textContent = state.name1;
-  document.getElementById('split-lbl2').textContent = state.name2;
+
   document.getElementById('fc-p1').textContent = state.name1;
   document.getElementById('fc-p2').textContent = state.name2;
   document.getElementById('jahr-lbl1').textContent = state.name1+' (\u20ac)';
   document.getElementById('jahr-lbl2').textContent = state.name2+' (\u20ac)';
 }
 
+function renderSaldoBlock(elVal, elHint, diff, me) {
+  var el = document.getElementById(elVal);
+  var hint = document.getElementById(elHint);
+  if (!el || !hint) return;
+  var myD = me === 'p1' ? diff : -diff;
+  if (Math.abs(diff) < 0.01) {
+    el.textContent = '€ 0.00';
+    el.className = 'dash-saldo-val zero';
+    hint.textContent = 'Ausgeglichen ✓';
+    hint.className = 'dash-settle-hint ok';
+  } else if (myD > 0) {
+    var owes = me === 'p1' ? state.name2 : state.name1;
+    el.textContent = '€ ' + Math.abs(diff).toFixed(2);
+    el.className = 'dash-saldo-val ok';
+    hint.textContent = owes + ' schuldet mir';
+    hint.className = 'dash-settle-hint ok';
+  } else {
+    var oweeTo = me === 'p1' ? state.name2 : state.name1;
+    el.textContent = '€ ' + Math.abs(diff).toFixed(2);
+    el.className = 'dash-saldo-val owe';
+    hint.textContent = 'Ich schulde ' + oweeTo;
+    hint.className = 'dash-settle-hint owe';
+  }
+}
+
 function renderDashboard() {
   var d = new Date();
   document.getElementById('dash-month').textContent = MONTHS[d.getMonth()+1]+' '+d.getFullYear();
   var saldo = calcOpenSaldo();
-  var me = loadMe();
-  // diff > 0 means p2 owes p1
-  // From my perspective: positive = I am owed money (good = green), negative = I owe (bad = red)
-  function myDiff(diff) {
-    return me === 'p1' ? diff : -diff;
-  }
-  function setSaldo(elVal, elHint, diff) {
-    var el = document.getElementById(elVal);
-    var hint = document.getElementById(elHint);
-    var myD = myDiff(diff);
-    if (Math.abs(diff) < 0.01) {
-      el.textContent = '\u20ac 0.00';
-      el.className = 'dash-saldo-val zero';
-      hint.textContent = 'Ausgeglichen \u2713';
-      hint.className = 'dash-settle-hint ok';
-    } else if (myD > 0) {
-      // I am owed money — green for me
-      var owes = me === 'p1' ? state.name2 : state.name1;
-      el.textContent = '\u20ac '+Math.abs(diff).toFixed(2);
-      el.className = 'dash-saldo-val ok';
-      hint.textContent = owes+' schuldet mir';
-      hint.className = 'dash-settle-hint ok';
-    } else {
-      // I owe money — red for me
-      var oweeTo = me === 'p1' ? state.name2 : state.name1;
-      el.textContent = '\u20ac '+Math.abs(diff).toFixed(2);
-      el.className = 'dash-saldo-val owe';
-      hint.textContent = 'Ich schulde '+oweeTo;
-      hint.className = 'dash-settle-hint owe';
-    }
-  }
-  setSaldo('dash-miete-val','dash-miete-hint', saldo.miete);
-  setSaldo('dash-alltag-val','dash-alltag-hint', saldo.alltag);
+  var me = loadMe() || 'p1';
+  renderSaldoBlock('dash-miete-val', 'dash-miete-hint', saldo.miete, me);
+  renderSaldoBlock('dash-alltag-val', 'dash-alltag-hint', saldo.alltag, me);
 }
 
 function entryHTML(e) {
@@ -904,6 +898,14 @@ function initJahrTab() {
   if (document.getElementById('jahr-lbl2')) document.getElementById('jahr-lbl2').textContent = state.name2+' (€)';
 }
 
+function dRow(diff, label, amount) {
+    if (Math.abs(diff)<0.01) return '<div class="jahr-diff-row"><div><div class="jahr-diff-label">'+label+'</div><div class="jahr-diff-sub">\u20ac '+amount.toFixed(2)+' gesamt</div></div><div class="jahr-diff-val" style="color:#2A7A5A">Ausgeglichen \u2713</div></div>';
+    var payer = diff>0?state.name2:state.name1;
+    var recv  = diff>0?state.name1:state.name2;
+    var cls   = diff>0?'green':'red';
+    return '<div class="jahr-diff-row"><div><div class="jahr-diff-label">'+label+'</div><div class="jahr-diff-sub">'+payer+' \u2192 '+recv+' &bull; \u20ac '+amount.toFixed(2)+' gesamt</div></div><div class="jahr-diff-val '+cls+'">\u20ac '+Math.abs(diff).toFixed(2)+'</div></div>';
+  }
+
 function calcJahr() {
   var inc1 = parseFloat(document.getElementById('jahr-inc1').value);
   var inc2 = parseFloat(document.getElementById('jahr-inc2').value);
@@ -924,13 +926,6 @@ function calcJahr() {
   var rDiff = rp1 - rt*0.5;
   var tot = mDiff + rDiff;
 
-  function dRow(diff, label, amount) {
-    if (Math.abs(diff)<0.01) return '<div class="jahr-diff-row"><div><div class="jahr-diff-label">'+label+'</div><div class="jahr-diff-sub">\u20ac '+amount.toFixed(2)+' gesamt</div></div><div class="jahr-diff-val" style="color:#2A7A5A">Ausgeglichen \u2713</div></div>';
-    var payer = diff>0?state.name2:state.name1;
-    var recv  = diff>0?state.name1:state.name2;
-    var cls   = diff>0?'green':'red';
-    return '<div class="jahr-diff-row"><div><div class="jahr-diff-label">'+label+'</div><div class="jahr-diff-sub">'+payer+' \u2192 '+recv+' &bull; \u20ac '+amount.toFixed(2)+' gesamt</div></div><div class="jahr-diff-val '+cls+'">\u20ac '+Math.abs(diff).toFixed(2)+'</div></div>';
-  }
 
   var finPayer = tot>0?state.name2:state.name1;
   var finRecv  = tot>0?state.name1:state.name2;
@@ -948,8 +943,7 @@ function calcJahr() {
 function applySettingsForm() {
   document.getElementById('s-name1').value = state.name1;
   document.getElementById('s-name2').value = state.name2;
-  if (document.getElementById('s-split1')) document.getElementById('s-split1').value = state.split1;
-  if (document.getElementById('s-split2')) document.getElementById('s-split2').value = state.split2;
+
   var meEl = document.getElementById('s-me');
   if (meEl) { meEl.value = loadMe()||'p1'; }
   var mp1 = document.getElementById('s-me-p1'); if(mp1) mp1.text = state.name1;
@@ -1014,8 +1008,7 @@ function saveEdit() {
 function saveSettings() {
   state.name1 = document.getElementById('s-name1').value.trim()||'Wouter';
   state.name2 = document.getElementById('s-name2').value.trim()||'Romina';
-  state.split1 = parseInt(document.getElementById('s-split1').value)||50;
-  state.split2 = parseInt(document.getElementById('s-split2').value)||50;
+  // split managed via Jahresabschluss tab
   persistSettings();
   var cfg = loadCfg();
   if (cfg) { cfg.name1=state.name1; cfg.name2=state.name2; localStorage.setItem('ft_cfg',JSON.stringify(cfg)); }
