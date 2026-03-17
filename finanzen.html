@@ -493,7 +493,6 @@ function startSync() {
       state.entries = snap.exists ? (snap.data().list||[]) : [];
       document.getElementById('sync-st').textContent = 'Synchronisiert ' + new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
       showApp();
-      renderAll();
     }, function(err) {
       document.getElementById('sync-st').textContent = 'Sync-Fehler: ' + err.message;
     });
@@ -501,7 +500,6 @@ function startSync() {
     unsub = eRef.onSnapshot(function(snap) {
       state.entries = snap.exists ? (snap.data().list||[]) : [];
       showApp();
-      renderAll();
     });
   });
 }
@@ -524,8 +522,11 @@ function showApp() {
     return;
   }
   document.getElementById('app').style.display = 'block';
-  applyMeSettings();
-  renderAll();
+  // Small delay to ensure DOM is ready
+  setTimeout(function() {
+    applyMeSettings();
+    renderAll();
+  }, 0);
 }
 
 function chooseMe(who) {
