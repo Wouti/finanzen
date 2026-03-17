@@ -325,6 +325,28 @@ html, body { font-family: 'DM Mono', monospace; background: #F5F7FA; color: #1a3
     </div>
   </div>
 
+
+  <div id="tab-jahr" class="tab-content">
+    <div class="section">
+      <div class="section-label">Jahresabschluss</div>
+      <div class="add-card" style="margin-bottom:12px;">
+        <div style="font-size:11px;color:#4A6080;line-height:1.7;margin-bottom:1rem;">
+          Hier tragt ihr am Jahresende eure echten Jahresnettoeinkommen ein. Die App berechnet dann den korrekten Split für alle Miete/NK-Einträge des Jahres und zeigt die finale Ausgleichssumme.
+        </div>
+        <div class="field-row" style="margin-bottom:10px;">
+          <div class="field"><label id="jahr-lbl1">Wouter — Einkommen (€)</label><input type="number" id="jahr-inc1" placeholder="z.B. 35000" inputmode="decimal" /></div>
+          <div class="field"><label id="jahr-lbl2">Romina — Einkommen (€)</label><input type="number" id="jahr-inc2" placeholder="z.B. 28000" inputmode="decimal" /></div>
+        </div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>Jahr</label>
+          <select id="jahr-year"></select>
+        </div>
+        <button class="btn-add" onclick="calcJahresabschluss()">Jahresabschluss berechnen</button>
+      </div>
+      <div id="jahr-result"></div>
+    </div>
+  </div>
+
   <div id="tab-settings" class="tab-content">
     <div class="section">
       <div class="settings-card">
@@ -344,7 +366,7 @@ html, body { font-family: 'DM Mono', monospace; background: #F5F7FA; color: #1a3
           <input type="number" class="split-input" id="s-split2" min="0" max="100" step="1" value="50" oninput="syncSplit(2)" />
           <span class="split-pct">%</span>
         </div>
-        <div class="split-hint">Beide zusammen sollten 100% ergeben. Zum Jahresende anpassen wenn die Einkommen feststehen.</div>
+        <div class="split-hint">Beide zusammen sollten 100% ergeben. Zum Jahresende anpassen wenn die Einkommen feststehen.<br><br>Gilt nur für <strong>Miete / NK</strong> — alle anderen Kategorien werden automatisch 50/50 geteilt.</div>
         <button class="btn-save" onclick="saveSettings()">Speichern</button>
         <div id="save-msg" class="save-msg"></div>
       </div>
@@ -367,6 +389,9 @@ html, body { font-family: 'DM Mono', monospace; background: #F5F7FA; color: #1a3
     <div class="nav-item" onclick="showTab('month')" id="nav-month">
       <div class="nav-dot"></div><div class="nav-icon">◷</div><div class="nav-label">Auswertung</div>
     </div>
+    <div class="nav-item" onclick="showTab('jahr')" id="nav-jahr">
+      <div class="nav-dot"></div><div class="nav-icon">◎</div><div class="nav-label">Jahresabschluss</div>
+    </div>
     <div class="nav-item" onclick="showTab('settings')" id="nav-settings">
       <div class="nav-dot"></div><div class="nav-icon">⚙</div><div class="nav-label">Einstellungen</div>
     </div>
@@ -374,7 +399,7 @@ html, body { font-family: 'DM Mono', monospace; background: #F5F7FA; color: #1a3
 
 <div id="delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:600;display:none;align-items:flex-end;justify-content:center;">
   <div style="background:#F5F7FA;border-radius:16px 16px 0 0;padding:1.5rem;width:100%;max-width:480px;box-shadow:0 -4px 24px rgba(0,0,0,0.15);">
-    <div style="font-family:'Fraunces',Georgia,serif;font-size:18px;font-weight:400;font-style:italic;color:#C44035;margin-bottom:0.5rem;">Alle Einträge löschen?</div>
+    <div style="font-family:Fraunces,Georgia,serif;font-size:18px;font-weight:400;font-style:italic;color:#C44035;margin-bottom:0.5rem;">Alle Einträge löschen?</div>
     <p style="font-size:12px;color:#4A6080;line-height:1.6;margin-bottom:1rem;">Das kann nicht rückgängig gemacht werden. Firebase-Daten werden permanent gelöscht.<br><br>Tippe <strong style="color:#1a3a6b">löschen</strong> ein um zu bestätigen:</p>
     <input type="text" id="delete-confirm-input" placeholder="löschen" style="width:100%;background:#EBF0F7;border:0.5px solid rgba(16,78,139,0.18);border-radius:10px;padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;color:#1a3a6b;outline:none;margin-bottom:10px;" />
     <div style="display:flex;gap:8px;">
@@ -419,7 +444,7 @@ html, body { font-family: 'DM Mono', monospace; background: #F5F7FA; color: #1a3
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-app-compat.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-firestore-compat.min.js"></script>
 <script>
-const CATS = { miete:'Miete / NK', einkauf:'Einkäufe', urlaub:'Urlaub', geschenke:'Geschenke', katzen:'Katzen' };
+const CATS = { miete:'Miete / NK', einkauf:'Einkäufe', urlaub:'Urlaub', geschenke:'Geschenke', katzen:'Katzen', ausgleich:'Ausgleich' };
 const MONTHS = ['','Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 
 let db = null, unsub = null;
@@ -518,7 +543,11 @@ function renderDashboard() {
   const total = entries.reduce((s,e) => s+e.amount, 0);
   const p1paid = entries.filter(e => e.who==='p1').reduce((s,e) => s+e.amount, 0);
   const p2paid = entries.filter(e => e.who==='p2').reduce((s,e) => s+e.amount, 0);
-  const p1share = total*(state.split1/100);
+  // miete: income-based split, rest: 50/50
+  const p1share = entries.reduce((s,e) => {
+    const splitPct = e.cat === 'miete' ? state.split1/100 : 0.5;
+    return s + e.amount * splitPct;
+  }, 0);
   const p1diff = p1paid - p1share;
   document.getElementById('dash-month').textContent = monthLabel(cur);
   document.getElementById('dash-total').textContent = '\u20ac ' + total.toFixed(2);
@@ -588,8 +617,9 @@ function renderMonth() {
   const total = entries.reduce((s,e) => s+e.amount, 0);
   const p1paid = entries.filter(e => e.who==='p1').reduce((s,e) => s+e.amount, 0);
   const p2paid = entries.filter(e => e.who==='p2').reduce((s,e) => s+e.amount, 0);
-  const p1share = total*(state.split1/100);
-  const p2share = total*(state.split2/100);
+  // miete: income-based split, rest: 50/50
+  const p1share = entries.reduce((s,e) => s + e.amount * (e.cat === 'miete' ? state.split1/100 : 0.5), 0);
+  const p2share = entries.reduce((s,e) => s + e.amount * (e.cat === 'miete' ? state.split2/100 : 0.5), 0);
   const p1diff = p1paid - p1share;
   document.getElementById('month-grid').innerHTML =
     '<div class="month-stat"><div class="month-stat-label">Gesamt</div><div class="month-stat-val">\u20ac ' + total.toFixed(2) + '</div></div>' +
@@ -604,12 +634,40 @@ function renderMonth() {
     const v = catTotals[k]||0;
     return '<div class="cat-row"><div class="cat-row-top"><span>' + lbl + '</span><span>\u20ac ' + v.toFixed(2) + '</span></div><div class="cat-bar-track"><div class="cat-bar-fill" style="width:' + Math.round(v/maxCat*100) + '%"></div></div></div>';
   }).join('');
-  let settle = '';
-  if (total === 0) settle = '<div class="empty" style="padding:.5rem 0">Keine Eintr\u00e4ge.</div>';
-  else if (Math.abs(p1diff) < 0.01) settle = '<div class="settle-line" style="color:#2A7A5A">Alles ausgeglichen \u2713</div>';
-  else if (p1diff > 0) settle = '<div class="settle-line">' + state.name2 + ' zahlt an ' + state.name1 + '<span class="settle-amount green">\u20ac ' + Math.abs(p1diff).toFixed(2) + '</span></div>';
-  else settle = '<div class="settle-line">' + state.name1 + ' zahlt an ' + state.name2 + '<span class="settle-amount red">\u20ac ' + Math.abs(p1diff).toFixed(2) + '</span></div>';
-  document.getElementById('month-settle').innerHTML = settle;
+  // Split into miete vs rest
+  const mieteEntries = entries.filter(e => e.cat === 'miete' && !e.isSettlement);
+  const restEntries  = entries.filter(e => e.cat !== 'miete' && !e.isSettlement);
+
+  const mieteTotal  = mieteEntries.reduce((s,e) => s+e.amount, 0);
+  const mieteP1paid = mieteEntries.filter(e => e.who==='p1').reduce((s,e) => s+e.amount, 0);
+  const mieteP1share = mieteEntries.reduce((s,e) => s + e.amount*(state.split1/100), 0);
+  const mieteP1diff = mieteP1paid - mieteP1share;
+
+  const restTotal  = restEntries.reduce((s,e) => s+e.amount, 0);
+  const restP1paid = restEntries.filter(e => e.who==='p1').reduce((s,e) => s+e.amount, 0);
+  const restP1share = restTotal * 0.5;
+  const restP1diff  = restP1paid - restP1share;
+
+  function settleBlock(label, splitLabel, diff, name1, name2) {
+    if (diff === null) return '<div style="font-size:11px;color:#8AAAC8;font-style:italic;padding:4px 0">Keine Eintr\u00e4ge</div>';
+    if (Math.abs(diff) < 0.01) return '<div style="font-size:12px;color:#2A7A5A">Ausgeglichen \u2713</div>';
+    const payer = diff > 0 ? name2 : name1;
+    const receiver = diff > 0 ? name1 : name2;
+    const cls = diff > 0 ? 'green' : 'red';
+    return payer + ' zahlt an ' + receiver + '<span class="settle-amount ' + cls + '">\u20ac ' + Math.abs(diff).toFixed(2) + '</span>';
+  }
+
+  const settleHTML =
+    '<div style="margin-bottom:14px;">' +
+      '<div style="font-size:9px;color:#8AAAC8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Miete / NK <span style="opacity:0.6">(' + state.split1 + '/' + state.split2 + ' — einkommensbasiert, Schätzung)</span></div>' +
+      '<div class="settle-line">' + settleBlock('miete', state.split1+'/'+state.split2, mieteTotal > 0 ? mieteP1diff : null, state.name1, state.name2) + '</div>' +
+    '</div>' +
+    '<div style="border-top:0.5px solid rgba(16,78,139,0.10);padding-top:14px;">' +
+      '<div style="font-size:9px;color:#8AAAC8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Alltag <span style="opacity:0.6">(50/50)</span></div>' +
+      '<div class="settle-line">' + settleBlock('rest', '50/50', restTotal > 0 ? restP1diff : null, state.name1, state.name2) + '</div>' +
+    '</div>';
+
+  document.getElementById('month-settle').innerHTML = settleHTML;
 }
 
 function renderYearOverview() {
@@ -622,7 +680,7 @@ function renderYearOverview() {
     const entries = state.entries.filter(e => monthKey(e.date) === k);
     const total = entries.reduce((s,e) => s+e.amount, 0);
     const p1paid = entries.filter(e => e.who==='p1').reduce((s,e) => s+e.amount, 0);
-    const p1share = total*(state.split1/100);
+    const p1share = entries.reduce((s,e) => s + e.amount * (e.cat === 'miete' ? state.split1/100 : 0.5), 0);
     const p1diff = p1paid - p1share;
     let settleText = '', settleClass = '';
     if (total > 0) {
@@ -749,15 +807,95 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
+
+function initJahrTab() {
+  var yearSuffix = today().split('.')[2];
+  var years = [];
+  state.entries.forEach(function(e) {
+    var y = '20' + e.date.split('.')[2];
+    if (years.indexOf(y) === -1) years.push(y);
+  });
+  years.sort().reverse();
+  if (!years.length) years.push('20' + yearSuffix);
+  var sel = document.getElementById('jahr-year');
+  sel.innerHTML = years.map(function(y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
+  document.getElementById('jahr-lbl1').textContent = state.name1 + ' — Einkommen (€)';
+  document.getElementById('jahr-lbl2').textContent = state.name2 + ' — Einkommen (€)';
+  document.getElementById('jahr-result').innerHTML = '';
+}
+
+function makeDiffLine(diff, label, name1, name2) {
+  if (Math.abs(diff) < 0.01) {
+    return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid rgba(16,78,139,0.08)"><span style="font-size:12px;color:#4A6080">' + label + '</span><span style="color:#2A7A5A">Ausgeglichen ✓</span></div>';
+  }
+  var payer    = diff > 0 ? name2 : name1;
+  var receiver = diff > 0 ? name1 : name2;
+  var color    = diff > 0 ? '#2A7A5A' : '#C44035';
+  return '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:0.5px solid rgba(16,78,139,0.08)">'
+    + '<span style="font-size:12px;color:#4A6080">' + label + '<br><span style="font-size:11px;color:#8AAAC8">' + payer + ' → ' + receiver + '</span></span>'
+    + '<span style="font-size:20px;color:' + color + '">€ ' + Math.abs(diff).toFixed(2) + '</span>'
+    + '</div>';
+}
+
+function calcJahresabschluss() {
+  var inc1   = parseFloat(document.getElementById('jahr-inc1').value);
+  var inc2   = parseFloat(document.getElementById('jahr-inc2').value);
+  var year   = document.getElementById('jahr-year').value;
+  var result = document.getElementById('jahr-result');
+
+  if (!inc1 || !inc2 || inc1 <= 0 || inc2 <= 0) {
+    result.innerHTML = '<div style="font-size:12px;color:#C44035;text-align:center;padding:1rem">Bitte beide Einkommen eingeben.</div>';
+    return;
+  }
+
+  var totalInc   = inc1 + inc2;
+  var split1     = inc1 / totalInc;
+  var split2     = inc2 / totalInc;
+  var yearSuffix = year.slice(2);
+
+  var allEntries   = state.entries.filter(function(e) { return e.date.endsWith(yearSuffix) && !e.isSettlement; });
+  var mieteEntries = allEntries.filter(function(e) { return e.cat === 'miete'; });
+  var restEntries  = allEntries.filter(function(e) { return e.cat !== 'miete'; });
+
+  var mieteTotal   = mieteEntries.reduce(function(s,e) { return s + e.amount; }, 0);
+  var mieteP1paid  = mieteEntries.filter(function(e) { return e.who === 'p1'; }).reduce(function(s,e) { return s + e.amount; }, 0);
+  var mieteP1diff  = mieteP1paid - mieteTotal * split1;
+
+  var restTotal    = restEntries.reduce(function(s,e) { return s + e.amount; }, 0);
+  var restP1paid   = restEntries.filter(function(e) { return e.who === 'p1'; }).reduce(function(s,e) { return s + e.amount; }, 0);
+  var restP1diff   = restP1paid - restTotal * 0.5;
+
+  var totalDiff    = mieteP1diff + restP1diff;
+  var finalPayer   = totalDiff > 0 ? state.name2 : state.name1;
+  var finalReceiver = totalDiff > 0 ? state.name1 : state.name2;
+  var finalColor   = totalDiff > 0 ? '#2A7A5A' : '#C44035';
+
+  result.innerHTML =
+    '<div class="settle-card">'
+    + '<div style="font-size:10px;color:#8AAAC8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px">'
+    + year + ' — Echter Split: ' + state.name1 + ' ' + Math.round(split1 * 100) + '% / ' + state.name2 + ' ' + Math.round(split2 * 100) + '%'
+    + '</div>'
+    + makeDiffLine(mieteP1diff, 'Miete / NK (€ ' + mieteTotal.toFixed(2) + ')', state.name1, state.name2)
+    + makeDiffLine(restP1diff,  'Alltag 50/50 (€ ' + restTotal.toFixed(2) + ')', state.name1, state.name2)
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 0 4px">'
+    + '<span style="font-size:12px;color:#4A6080">Gesamtausgleich ' + year + '<br><span style="font-size:11px;color:#8AAAC8">' + finalPayer + ' zahlt an ' + finalReceiver + '</span></span>'
+    + '<span style="font-size:26px;color:' + finalColor + '">€ ' + Math.abs(totalDiff).toFixed(2) + '</span>'
+    + '</div>'
+    + '</div>'
+    + '<div style="font-size:10px;color:#8AAAC8;text-align:center;line-height:1.6;padding:0 1rem;margin-top:6px">Diese Berechnung verändert keine gespeicherten Daten.</div>';
+}
+
+
 function showTab(name) {
   activeTab = name;
-  ['add','list','month','settings'].forEach(t => {
+  ['add','list','month','jahr','settings'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
     document.getElementById('nav-'+t).classList.toggle('active', t===name);
   });
   if (name==='list')     renderFullList();
   if (name==='month')    { populateMonthSel(); renderMonth(); renderYearOverview(); }
   if (name==='settings') applySettingsForm();
+  if (name==='jahr') initJahrTab();
 }
 
 
