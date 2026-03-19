@@ -438,6 +438,24 @@ body,html{font-family:"DM Mono",monospace;background:#F5F7FA;color:#1a3a6b;min-h
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-firestore-compat.min.js"></script>
 <script>
 var CATS = {miete:'Miete/NK', einkauf:'Eink\u00e4ufe', urlaub:'Urlaub', geschenke:'Geschenke', katzen:'Katzen', auslage:'Auslage', settlement:'Ausgleich'};
+
+var CAT_SPLIT_DEFAULTS = {
+  miete: 'income',
+  einkauf: '50/50',
+  urlaub: '50/50',
+  geschenke: '50/50',
+  katzen: '50/50',
+  auslage: '100'
+};
+
+function onCatChange() {
+  var cat = document.getElementById('f-cat').value;
+  var splitEl = document.getElementById('f-split');
+  if (splitEl) splitEl.value = CAT_SPLIT_DEFAULTS[cat] || '50/50';
+}
+
+function onSplitChange() {}
+
 var MONTHS = ['','Jan','Feb','M\u00e4r','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 var db = null, unsub = null;
 var state = {entries:[], name1:'Wouter', name2:'Romina', split1:50, split2:50};
