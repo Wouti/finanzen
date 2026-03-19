@@ -269,15 +269,17 @@ body,html{font-family:"DM Mono",monospace;background:#F5F7FA;color:#1a3a6b;min-h
             </select>
           </div>
           <div class="field"><label>Kategorie</label>
-            <select id="f-cat">
+            <select id="f-cat" onchange="onCatChange()">
               <option value="miete">Miete / NK</option>
               <option value="einkauf">Eink&auml;ufe</option>
               <option value="urlaub">Urlaub</option>
               <option value="geschenke">Geschenke</option>
               <option value="katzen">Katzen</option>
+              <option value="auslage">Auslage</option>
             </select>
           </div>
         </div>
+        <div class="field"><label>Split</label><select id="f-split" onchange="onSplitChange()"><option value="50/50">50/50</option><option value="income">Einkommensbasiert</option><option value="100">Auslage (100%)</option></select></div>
         <div class="field"><label>Notiz (optional)</label><textarea id="f-note" placeholder=""></textarea></div>
         <button class="btn-add" onclick="addEntry()">Eintragen</button>
         <div class="add-msg" id="add-msg"></div>
@@ -410,6 +412,7 @@ body,html{font-family:"DM Mono",monospace;background:#F5F7FA;color:#1a3a6b;min-h
       <div class="field"><label>Bezahlt von</label><select id="edit-who"><option value="p1" id="opt-p1b">Wouter</option><option value="p2" id="opt-p2b">Romina</option></select></div>
       <div class="field"><label>Kategorie</label><select id="edit-cat"><option value="miete">Miete/NK</option><option value="einkauf">Eink&auml;ufe</option><option value="urlaub">Urlaub</option><option value="geschenke">Geschenke</option><option value="katzen">Katzen</option></select></div>
     </div>
+    <div class="field"><label>Split</label><select id="edit-split"><option value="50/50">50/50</option><option value="income">Einkommensbasiert</option><option value="100">Auslage (100%)</option></select></div>
     <div class="field"><label>Notiz</label><textarea id="edit-note"></textarea></div>
     <div class="modal-btns">
       <button class="btn-modal-cancel" onclick="document.getElementById('edit-modal').style.display='none'">Abbrechen</button>
@@ -434,7 +437,7 @@ body,html{font-family:"DM Mono",monospace;background:#F5F7FA;color:#1a3a6b;min-h
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-app-compat.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-firestore-compat.min.js"></script>
 <script>
-var CATS = {miete:'Miete/NK', einkauf:'Eink\u00e4ufe', urlaub:'Urlaub', geschenke:'Geschenke', katzen:'Katzen', settlement:'Ausgleich'};
+var CATS = {miete:'Miete/NK', einkauf:'Eink\u00e4ufe', urlaub:'Urlaub', geschenke:'Geschenke', katzen:'Katzen', auslage:'Auslage', settlement:'Ausgleich'};
 var MONTHS = ['','Jan','Feb','M\u00e4r','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 var db = null, unsub = null;
 var state = {entries:[], name1:'Wouter', name2:'Romina', split1:50, split2:50};
@@ -570,9 +573,14 @@ function calcOpenSaldo() {
       if (e.settlementType === 'miete') miete -= amt;
       else alltag -= amt;
     } else {
+      var sType = e.splitType || CAT_SPLIT_DEFAULTS[e.cat] || '50/50';
       var paid = e.who === 'p1' ? e.amount : 0;
-      var splitPct = e.cat === 'miete' ? state.split1/100 : 0.5;
-      var share = e.amount * splitPct;
+      var share;
+      if (sType === '100') {
+        share = e.who === 'p2' ? e.amount : 0;
+      } else {
+        share = e.amount * getSplitPct(sType, state.split1);
+      }
       var diff = paid - share;
       if (e.cat === 'miete') miete += diff;
       else alltag += diff;
@@ -604,9 +612,14 @@ function calcCumulativeSaldo(upToMonthKey) {
       if (e.settlementType === 'miete') miete -= amt;
       else alltag -= amt;
     } else {
+      var sType = e.splitType || CAT_SPLIT_DEFAULTS[e.cat] || '50/50';
       var paid = e.who === 'p1' ? e.amount : 0;
-      var splitPct = e.cat === 'miete' ? state.split1/100 : 0.5;
-      var share = e.amount * splitPct;
+      var share;
+      if (sType === '100') {
+        share = e.who === 'p2' ? e.amount : 0;
+      } else {
+        share = e.amount * getSplitPct(sType, state.split1);
+      }
       var diff = paid - share;
       if (e.cat === 'miete') miete += diff;
       else alltag += diff;
@@ -622,14 +635,21 @@ function calcMonthSaldo(entries) {
   entries.forEach(function(e) {
     if (e.isSettlement) return;
     var isPaid1 = e.who === 'p1';
+    var sType3 = e.splitType || CAT_SPLIT_DEFAULTS[e.cat] || '50/50';
+    var share3;
+    if (sType3 === '100') {
+      share3 = isPaid1 ? 0 : e.amount;
+    } else {
+      share3 = e.amount * getSplitPct(sType3, state.split1);
+    }
     if (e.cat === 'miete') {
       miete.total += e.amount;
       if (isPaid1) miete.p1paid += e.amount;
-      miete.p1share += e.amount * (state.split1/100);
+      miete.p1share += share3;
     } else {
       alltag.total += e.amount;
       if (isPaid1) alltag.p1paid += e.amount;
-      alltag.p1share += e.amount * 0.5;
+      alltag.p1share += share3;
     }
   });
   return {
@@ -960,7 +980,8 @@ function addEntry() {
   var note = document.getElementById('f-note').value.trim();
   var msg = document.getElementById('add-msg');
   if (!desc||isNaN(amount)||amount<=0) { msg.textContent='Beschreibung und Betrag erforderlich.'; msg.className='add-msg err'; return; }
-  state.entries.push({id:Date.now(), desc:desc, amount:amount, who:who, cat:cat, date:date, note:note});
+  var splitType = document.getElementById('f-split') ? document.getElementById('f-split').value : (CAT_SPLIT_DEFAULTS[cat]||'50/50');
+  state.entries.push({id:Date.now(), desc:desc, amount:amount, who:who, cat:cat, date:date, note:note, splitType:splitType});
   persist();
   document.getElementById('f-desc').value='';
   document.getElementById('f-amount').value='';
@@ -999,7 +1020,8 @@ function saveEdit() {
     date: document.getElementById('edit-date').value.trim(),
     who: document.getElementById('edit-who').value,
     cat: document.getElementById('edit-cat').value,
-    note: document.getElementById('edit-note').value.trim()
+    note: document.getElementById('edit-note').value.trim(),
+    splitType: document.getElementById('edit-split') ? document.getElementById('edit-split').value : undefined
   });
   persist();
   document.getElementById('edit-modal').style.display = 'none';
@@ -1062,6 +1084,7 @@ function showTab(name) {
 
 // ── BOOT ────────────────────────────────────────────────────────
 document.getElementById('f-date').value = today();
+if (document.getElementById('f-split')) document.getElementById('f-split').value = '50/50';
 var cfg = loadCfg();
 if (cfg&&cfg.apiKey) { initFB(cfg); }
 else { document.getElementById('loading').style.display='none'; document.getElementById('setup').style.display='flex'; }
